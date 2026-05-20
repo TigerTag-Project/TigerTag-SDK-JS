@@ -130,6 +130,21 @@ The playground has three panels:
 - **Center** — parsed output cards: Protocol, Material, Colors, Print Settings, Quantity, Traceability, Cloud API
 - **Right** — collapsible SDK panel: `pretty()`, `verify()`, `toRawDict()`, `toDict()`, `rawApi()`, `diffApi()`
 
+### ACR122U / PC-SC live reader
+
+Place a chip on your reader and the playground auto-populates instantly — no manual action needed.
+
+```bash
+# Enable live reader support (one-time install)
+npm install ws nfc-pcsc
+
+# Then launch as usual — readers detected automatically
+npm run playground
+```
+
+Up to **2 simultaneous USB readers** supported. Reader status shown in the playground header:
+`● green` = connected · `● orange pulse` = reading card
+
 ---
 
 ## Install

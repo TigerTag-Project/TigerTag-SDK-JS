@@ -3,6 +3,27 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.0.1] — 2026-05-20
+
+### Added
+- Playground: live ACR122U / PC-SC reader integration via WebSocket
+  - Up to 2 simultaneous USB readers supported
+  - Card placement auto-populates playground form and displays full SDK output
+  - Reader status bar in playground header (green dot / orange pulse)
+  - WebSocket server on same port as HTTP (no extra port needed)
+  - Graceful fallback: playground works normally without `ws` and `nfc-pcsc`
+- `tools/server.js`: WebSocket server attached to HTTP server; nfc-pcsc reader loop
+  broadcasting `card:detected`, `card:removed`, `reader:connected`, `reader:disconnected`
+- README: full parity with Python SDK — input format tables, key methods/properties,
+  CRUD operations, ApiDiff docs, signature status table, DB auto-update table,
+  chip_layout.svg diagram, ACR122U full example, ecosystem table,
+  community integrations, AI-CONTEXT block
+- `llms.txt`: added npm URL, install command, playground section with ACR122U details
+
+### Changed
+- `package.json`: `ws ^8.x` and `nfc-pcsc ^0.8.x` added as devDependencies
+- Published to npm: `npm install tigertag` now available globally
+
 ## [1.0.0] — 2026-05-20
 
 ### Added
