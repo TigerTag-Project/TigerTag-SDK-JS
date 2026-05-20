@@ -47,6 +47,33 @@
     .hbtn:disabled { opacity: .35; cursor: not-allowed; pointer-events: none; }
     input[type=file] { display: none; }
 
+    /* ── NFC reader status bar ──────────────────────────────────────────────── */
+    #nfc-bar { display: flex; gap: 6px; align-items: center; }
+    .nfc-reader {
+      display: flex; align-items: center; gap: 5px;
+      background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.15);
+      border-radius: 20px; padding: 3px 9px 3px 7px;
+      font-size: 11px; color: rgba(255,255,255,.65); transition: all .3s; white-space: nowrap;
+    }
+    .nfc-reader.card-present {
+      background: rgba(249,115,22,.25); border-color: rgba(249,115,22,.5); color: #fb923c;
+    }
+    .nfc-dot {
+      width: 7px; height: 7px; border-radius: 50%; background: #4ade80;
+      flex-shrink: 0; transition: background .3s;
+    }
+    .nfc-reader.card-present .nfc-dot {
+      background: #f97316; animation: nfc-pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes nfc-pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: .45; transform: scale(.65); }
+    }
+    .nfc-unavail {
+      font-size: 11px; color: rgba(255,255,255,.28);
+      padding: 3px 8px; border: 1px solid rgba(255,255,255,.1); border-radius: 20px;
+    }
+
     /* ── Layout ─────────────────────────────────────────────────────────── */
     main {
       display: grid; grid-template-columns: 380px 1fr 460px; grid-template-rows: 1fr;
@@ -256,6 +283,7 @@
     </div>
     <span class="badge">SDK v1.0</span>
     <div class="spacer"></div>
+    <div id="nfc-bar"></div>
     <button class="hbtn" onclick="document.getElementById('file-in').click()">⬆ Import .bin</button>
     <button class="hbtn accent" id="export-btn" onclick="exportBin()" disabled>⬇ Export .bin</button>
     <input type="file" id="file-in" accept=".bin" onchange="importBin(event)">
@@ -1376,11 +1404,152 @@ function exportBin() {
   URL.revokeObjectURL(a.href);
 }
 
+// ── WebSocket / NFC reader integration ────────────────────────────────────────
+
+const _readerState = new Map(); // readerId → { id, name, connected, hasCard }
+
+function nfcBarRender() {
+  const bar = document.getElementById('nfc-bar');
+  if (!bar) return;
+  if (!_readerState.size) {
+    bar.innerHTML = '<span class="nfc-unavail" title="Plug in an ACR122U — requires: npm install ws nfc-pcsc">No reader</span>';
+    return;
+  }
+  bar.innerHTML = '';
+  for (const r of _readerState.values()) {
+    const el = document.createElement('div');
+    el.className = 'nfc-reader' + (r.hasCard ? ' card-present' : '');
+    el.id = 'nfc-r-' + r.id.replace(/[^a-z0-9]/gi, '_');
+    const label = r.name
+      .replace(/\(.*?\)/g, '').replace(/Interface \d+/i, '').replace(/PICC/i, '').trim()
+      .replace(/\s+/g, ' ').substring(0, 22);
+    el.title = r.name;
+    el.innerHTML = `<span class="nfc-dot"></span>${label}${r.hasCard ? ' · reading…' : ''}`;
+    bar.appendChild(el);
+  }
+}
+
+async function importFromScan(scanData) {
+  // scanData: { uid (hex uppercase), payload (hex), pretty, verify, raw }
+  const bytes = new Uint8Array(scanData.payload.match(/.{2}/g).map(h => parseInt(h, 16)));
+  const f = parseBuffer(bytes.buffer);
+  f.uid = scanData.uid;
+
+  _lastPayload = bytes;
+  document.getElementById('export-btn').disabled = false;
+
+  _currentVersion = f.id_tigertag >>> 0;
+  document.querySelectorAll('.seg-btn').forEach(b =>
+    b.classList.toggle('active', (+b.dataset.val >>> 0) === _currentVersion)
+  );
+  document.getElementById('mode-init').style.display     = (_currentVersion === ID_TIGERTAG_INIT) ? 'block' : 'none';
+  document.getElementById('mode-plus').style.display     = (_currentVersion === ID_TIGERTAG_PLUS) ? 'block' : 'none';
+  document.getElementById('mode-standard').style.display = (_currentVersion === ID_TIGERTAG)      ? 'block' : 'none';
+
+  document.getElementById('f-product-id').value = f.id_product;
+  setSelectVal('f-material', f.id_material);
+  setSelectVal('f-brand',    f.id_brand);
+  setSelectVal('f-type',     f.id_type);
+  setSelectVal('f-diameter', f.id_diameter);
+  repopulateAspects(f.id_aspect1, f.id_aspect2);
+  document.getElementById('f-color1').value          = rgbToHex(f.c1r, f.c1g, f.c1b);
+  document.getElementById('f-alpha1').value          = f.c1a;
+  document.getElementById('alpha1-val').textContent  = f.c1a;
+  document.getElementById('f-color2').value          = rgbToHex(f.c2r, f.c2g, f.c2b);
+  document.getElementById('f-color3').value          = rgbToHex(f.c3r, f.c3g, f.c3b);
+  document.getElementById('f-td').value              = f.td_raw > 0 ? (f.td_raw / 10).toFixed(1) : 0;
+  document.getElementById('f-nozzle-min').value      = f.nozzle_min;
+  document.getElementById('f-nozzle-max').value      = f.nozzle_max;
+  document.getElementById('f-bed-min').value         = f.bed_min;
+  document.getElementById('f-bed-max').value         = f.bed_max;
+  document.getElementById('f-dry-temp').value        = f.dry_temp;
+  document.getElementById('f-dry-time').value        = f.dry_time;
+  document.getElementById('f-measure').value         = f.measure;
+  setSelectVal('f-unit', f.id_unit);
+  document.getElementById('f-avail').value = f.avail !== f.measure ? f.avail : 0;
+  document.getElementById('f-msg').value   = f.custom;
+  if (f.uid) document.getElementById('f-uid').value = f.uid;
+  document.getElementById('f-date').value =
+    new Date((EPOCH_OFFSET + f.timestamp) * 1000).toISOString().split('T')[0];
+
+  updateColorGroups();
+  renderColorPreview();
+  await renderOutput(f, _lastPayload);
+}
+
+function initWebSocket() {
+  const port  = location.port || '7432';
+  const wsUrl = `ws://localhost:${port}`;
+  let ws, retryTimer;
+
+  function connect() {
+    try { ws = new WebSocket(wsUrl); } catch { return; }
+
+    ws.onmessage = async (ev) => {
+      let msg;
+      try { msg = JSON.parse(ev.data); } catch { return; }
+
+      switch (msg.type) {
+
+        case 'readers:status':
+          _readerState.clear();
+          for (const r of msg.readers) _readerState.set(r.id, r);
+          if (!msg.nfc) {
+            document.getElementById('nfc-bar').innerHTML =
+              '<span class="nfc-unavail" title="Run: npm install ws nfc-pcsc">NFC unavailable</span>';
+          } else {
+            nfcBarRender();
+          }
+          break;
+
+        case 'reader:connected':
+          _readerState.set(msg.reader.id, { ...msg.reader, hasCard: false });
+          nfcBarRender();
+          break;
+
+        case 'reader:disconnected':
+          _readerState.delete(msg.reader.id);
+          nfcBarRender();
+          break;
+
+        case 'card:detected': {
+          const r = _readerState.get(msg.reader.id);
+          if (r) r.hasCard = true;
+          nfcBarRender();
+          await importFromScan(msg);
+          break;
+        }
+
+        case 'card:removed': {
+          const r = _readerState.get(msg.reader.id);
+          if (r) r.hasCard = false;
+          nfcBarRender();
+          break;
+        }
+
+        case 'error':
+          console.warn('[NFC]', msg.reader?.name, msg.message);
+          break;
+      }
+    };
+
+    ws.onclose = () => {
+      clearTimeout(retryTimer);
+      retryTimer = setTimeout(connect, 3000);
+    };
+
+    ws.onerror = () => {};
+  }
+
+  connect();
+}
+
 // ── Boot ───────────────────────────────────────────────────────────────────────
 
 buildPresets();
 loadDB();
 selectVersion(ID_TIGERTAG);
+initWebSocket();
 </script>
 </body>
 </html>
