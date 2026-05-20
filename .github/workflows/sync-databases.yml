@@ -5,6 +5,9 @@ on:
     - cron: '0 3 * * *'   # every day at 03:00 UTC
   workflow_dispatch:        # manual trigger from the Actions tab
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   sync:
     runs-on: ubuntu-latest
