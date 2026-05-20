@@ -74,7 +74,7 @@ function main() {
   const uid     = Buffer.from('04A1B2C3D4E5F6', 'hex');  // illustrative 7-byte UID
   const payload = makeRosa3dRedPla();
 
-  const tag = TigerTag.fromPages(payload, uid);
+  const tag = TigerTag.fromPages(uid, payload);
 
   // Human-readable
   console.log(tag.pretty());

@@ -16,7 +16,7 @@
  * Quick start:
  *   const { TigerTag } = require('tigertag');
  *
- *   const tag = TigerTag.fromPages(payload, uid);  // from NFC SDK
+ *   const tag = TigerTag.fromPages(uid, payload);  // from NFC SDK
  *   const tag = TigerTag.fromDump(data);           // from binary dump
  *   const tag = TigerTag.fromFile('dump.bin');     // from file
  *

@@ -85,7 +85,7 @@ function initNFC() {
           payload = await reader.read(4, 80, 4);
         }
 
-        const tag    = TigerTag.fromPages(payload, uid);
+        const tag    = TigerTag.fromPages(uid, payload);
         const sigRes = tag.verify(db);
 
         broadcast({
@@ -176,7 +176,7 @@ async function handleDiff(req, res) {
 
       const payloadBuf = Buffer.from(payloadHex, 'hex');
       const uid        = uidHex ? Buffer.from(uidHex, 'hex') : undefined;
-      const tag        = TigerTag.fromPages(payloadBuf, uid);
+      const tag        = TigerTag.fromPages(uid, payloadBuf);
 
       let apiData  = null;
       let apiError = null;

@@ -79,7 +79,7 @@ class ApiDiff {
  *
  * @example
  * // Read
- * const tag = TigerTag.fromPages(payload, uid);
+ * const tag = TigerTag.fromPages(uid, payload);
  * const tag = TigerTag.fromDump(data);
  * const tag = TigerTag.fromFile('dump.bin');
  *
@@ -225,12 +225,12 @@ class TigerTag {
   /**
    * Parse a TigerTag from NFC SDK native output. (Primary method)
    *
-   * @param {Buffer} payload - 80 or 144 bytes (pages 0x04–0x27).
    * @param {Buffer} uid     - 7-byte chip UID as returned by the NFC SDK.
+   * @param {Buffer} payload - 80 or 144 bytes (pages 0x04–0x27).
    * @param {TigerTagDB} [db]
    * @returns {TigerTag}
    */
-  static fromPages(payload, uid, db = null) {
+  static fromPages(uid, payload, db = null) {
     const buf = Buffer.isBuffer(payload) ? payload : Buffer.from(payload);
     if (buf.length !== MIN_DATA_LEN && buf.length !== FULL_DATA_LEN) {
       throw new Error(
@@ -647,7 +647,7 @@ class TigerTag {
       return new SignatureResult(
         SignatureResult.NO_UID,
         'UID required for signature verification. '
-        + 'Use fromPages(payload, uid) — the NFC SDK always exposes '
+        + 'Use fromPages(uid, payload) — the NFC SDK always exposes '
         + 'the UID separately. For binary dumps, use a full 180-byte dump.',
       );
     }

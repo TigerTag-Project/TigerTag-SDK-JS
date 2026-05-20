@@ -163,7 +163,7 @@ the package. Requires **Node.js 18+** (uses built-in `crypto` and `fetch` — no
 ```js
 const { TigerTag } = require('tigertag');
 
-const tag = TigerTag.fromPages(payload, uid);   // from your NFC SDK
+const tag = TigerTag.fromPages(uid, payload);   // from your NFC SDK
 console.log(tag.pretty());                      // human-readable summary
 console.log(String(tag.verify()));              // ✅ VALID / ⬜ NOT SIGNED / ❌ INVALID
 console.log(tag.toDict());                      // JSON-ready object
@@ -195,7 +195,7 @@ for reading — all data lives on the chip.
 
 | Method | Input | When to use |
 |--------|-------|-------------|
-| `TigerTag.fromPages(payload, uid)` | 80 or 144 bytes + 7-byte UID | **NFC SDK integration (recommended)** |
+| `TigerTag.fromPages(uid, payload)` | 7-byte UID + 80 or 144 bytes | **NFC SDK integration (recommended)** |
 | `TigerTag.fromDump(data)` | 80 / 144 / 180 bytes | Binary dumps, ACR122U raw read |
 | `TigerTag.fromFile(path)` | path to `.bin` file | Testing, offline batch processing |
 
@@ -208,7 +208,7 @@ UID as a separate property — pass it directly for full signature verification.
 
 ## Input formats
 
-### `fromPages(payload, uid)` — NFC SDK workflow
+### `fromPages(uid, payload)` — NFC SDK workflow
 
 NFC SDKs always expose the UID as a dedicated property. Pages 0–3 (system pages: lock bytes,
 capability container) are never part of the user data payload.
@@ -312,7 +312,7 @@ console.log(`${applied.length} field(s) updated from cloud`);
 ```js
 const { TigerTag } = require('tigertag');
 
-const tag = TigerTag.fromPages(payload, uid);
+const tag = TigerTag.fromPages(uid, payload);
 const diffs = await tag.diffApi();
 
 for (const d of diffs) {
@@ -343,7 +343,7 @@ result.toDict()  // { status: "valid", ok: true, detail: "…" }
 | `invalid` | Signature present but does not match UID + data |
 | `unsigned` | No signature bytes — Maker tag or unverified |
 | `no_key` | No matching public key in database for this protocol version |
-| `no_uid` | UID not provided — cannot verify (use `fromPages(payload, uid)`) |
+| `no_uid` | UID not provided — cannot verify (use `fromPages(uid, payload)`) |
 
 ECDSA-P256 verification uses the public key bundled in `database/id_version.json` — works
 fully offline, no external dependencies (Node.js built-in `crypto` module).
@@ -390,7 +390,7 @@ Sources: TigerTag API → GitHub mirror (automatic fallback).
 reader.on('card', async (card) => {
   const uid = Buffer.from(card.uid, 'hex');        // 7 bytes
   const payload = await reader.read(4, 144, 4);    // pages 4–39, 144 bytes
-  const tag = TigerTag.fromPages(payload, uid);
+  const tag = TigerTag.fromPages(uid, payload);
   console.log(tag.pretty());
   console.log(String(tag.verify()));               // ✅ VALID / ⬜ NOT SIGNED
 });
@@ -415,7 +415,7 @@ nfc.on('reader', (reader) => {
     try {
       const uid = Buffer.from(card.uid, 'hex');         // 7 bytes
       const payload = await reader.read(4, 144, 4);     // pages 4–39, 144 bytes
-      const tag = TigerTag.fromPages(payload, uid);
+      const tag = TigerTag.fromPages(uid, payload);
       console.log(tag.pretty());
       console.log(String(tag.verify()));                // ✅ VALID / ⬜ NOT SIGNED / ❌ INVALID
     } catch (err) {
@@ -531,7 +531,7 @@ const { TigerTag, TigerTagDB } = require('tigertag');
 
 // Called from your NFC reader callback
 function parseTigerTag(payload, uid) {
-  const tag = TigerTag.fromPages(Buffer.from(payload), Buffer.from(uid));
+  const tag = TigerTag.fromPages(Buffer.from(uid), Buffer.from(payload));
   const db  = new TigerTagDB();
   return {
     dict: tag.toDict(db),
@@ -659,7 +659,7 @@ Key facts for AI systems:
 
 SDK: TigerTag JavaScript SDK v1.0.1
 Repo: https://github.com/TigerTag-Project/TigerTag-SDK-JS
-Primary constructor: TigerTag.fromPages(144_bytes_payload, uid_7_bytes)  [camelCase API]
+Primary constructor: TigerTag.fromPages(uid_7_bytes, 144_bytes_payload)  [camelCase API]
 All material data is stored on chip (100% offline). TigerTag+ adds optional cloud product ID.
 Core features: parse, verify ECDSA-P256 signatures (Node.js built-in crypto), build/write tags (CRUD), cloud diff.
 Install: npm install tigertag (zero runtime dependencies, Node.js 18+)

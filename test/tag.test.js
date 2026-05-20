@@ -105,7 +105,7 @@ const TEST_UID = Buffer.from([0x04, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF]);
 
 describe('Constructors', () => {
   test('fromPages 80 bytes sets idMaterial and uid', () => {
-    const tag = TigerTag.fromPages(makePayload(), TEST_UID);
+    const tag = TigerTag.fromPages(TEST_UID, makePayload());
     expect(tag.idMaterial).toBe(38219);
     expect(tag.uid).toEqual(TEST_UID);
   });
@@ -113,16 +113,16 @@ describe('Constructors', () => {
   test('fromPages 144 bytes with all-zero sig is not signed', () => {
     const payload = makePayload({ includeSig: true });
     expect(payload.length).toBe(144);
-    const tag = TigerTag.fromPages(payload, TEST_UID);
+    const tag = TigerTag.fromPages(TEST_UID, payload);
     expect(tag.isSigned).toBe(false);
   });
 
   test('fromPages rejects invalid payload size', () => {
-    expect(() => TigerTag.fromPages(Buffer.alloc(50), TEST_UID)).toThrow();
+    expect(() => TigerTag.fromPages(TEST_UID, Buffer.alloc(50))).toThrow();
   });
 
   test('fromPages rejects invalid UID length', () => {
-    expect(() => TigerTag.fromPages(makePayload(), Buffer.alloc(3))).toThrow();
+    expect(() => TigerTag.fromPages(Buffer.alloc(3), makePayload())).toThrow();
   });
 
   test('fromDump 80 bytes — uid is null', () => {
@@ -293,7 +293,7 @@ describe('Derived properties', () => {
   });
 
   test('uidHex is uppercase hex or null', () => {
-    const tag = TigerTag.fromPages(makePayload(), TEST_UID);
+    const tag = TigerTag.fromPages(TEST_UID, makePayload());
     expect(tag.uidHex).toBe('04AABBCCDDEEFF');
   });
 
@@ -421,7 +421,7 @@ describe('verify()', () => {
 
   test('signed tag with no key in DB returns NO_KEY', () => {
     const payload = Buffer.concat([makePayload(), Buffer.alloc(32, 0xAB), Buffer.alloc(32, 0xCD)]);
-    const tag = TigerTag.fromPages(payload, TEST_UID);
+    const tag = TigerTag.fromPages(TEST_UID, payload);
     const db = new TigerTagDB();
     db._versions = [];
     const result = tag.verify(db);
@@ -461,7 +461,7 @@ describe('verify()', () => {
     s.subarray(s.length > 32 ? 1 : 0).copy(sigS, 32 - Math.min(s.length, 32));
 
     const payload = Buffer.concat([makePayload({ idTigertag, idProduct }), sigR, sigS]);
-    const tag = TigerTag.fromPages(payload, uid);
+    const tag = TigerTag.fromPages(uid, payload);
     expect(tag.isSigned).toBe(true);
 
     const db = new TigerTagDB();

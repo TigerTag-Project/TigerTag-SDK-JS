@@ -27,7 +27,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [1.0.0] — 2026-05-20
 
 ### Added
-- `TigerTag.fromPages(payload, uid)` — primary constructor for NFC SDK integration
+- `TigerTag.fromPages(uid, payload)` — primary constructor for NFC SDK integration
 - `TigerTag.fromDump(data)` — constructor for binary dumps (180B auto-extracts UID)
 - `TigerTag.fromFile(path)` — convenience constructor from .bin file
 - `TigerTag.create({ ...fields })` — build a new tag from scratch with all fields

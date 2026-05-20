@@ -100,7 +100,7 @@ function main() {
   const signedPayload = Buffer.concat([payload, sigR, sigS]);  // 144 bytes
 
   // ── Parse and verify ─────────────────────────────────────────────────────────
-  const tag = TigerTag.fromPages(signedPayload, uid);
+  const tag = TigerTag.fromPages(uid, signedPayload);
 
   // Inject the test public key into a DB instance
   const db = new TigerTagDB();
@@ -116,7 +116,7 @@ function main() {
   // ── Tamper the signature — should fail ───────────────────────────────────────
   const tamperedR       = Buffer.from(sigR.map(b => b ^ 0xFF));
   const tamperedPayload = Buffer.concat([payload, tamperedR, sigS]);
-  const tamperedTag     = TigerTag.fromPages(tamperedPayload, uid);
+  const tamperedTag     = TigerTag.fromPages(uid, tamperedPayload);
   const tamperedResult  = tamperedTag.verify(db);
 
   console.log(`Tampered result:     ${tamperedResult}`);
@@ -124,7 +124,7 @@ function main() {
   console.log();
 
   // ── Unsigned tag ─────────────────────────────────────────────────────────────
-  const unsignedTag    = TigerTag.fromPages(payload, uid);
+  const unsignedTag    = TigerTag.fromPages(uid, payload);
   const unsignedResult = new SignatureResult(SignatureResult.UNSIGNED);
   console.log(`Unsigned result:     ${unsignedResult}`);
   console.log(`unsigned.ok:         ${unsignedResult.ok}`);

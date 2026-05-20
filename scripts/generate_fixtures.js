@@ -323,7 +323,7 @@ function main() {
     try {
       const tag = (payload.length === 180)
         ? TigerTag.fromDump(payload)
-        : TigerTag.fromPages(payload, uid);
+        : TigerTag.fromPages(uid, payload);
 
       const sig = tag.verify(db);
       const d   = tag.toDict(db);

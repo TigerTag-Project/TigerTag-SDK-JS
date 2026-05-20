@@ -157,9 +157,9 @@ Offset  Size  JS property       Type    Description
 
 ## CONSTRUCTORS
 
-TigerTag.fromPages(payload, uid)
-  payload: Buffer(80) or Buffer(144) — pages 0x04–0x27 from NFC SDK
+TigerTag.fromPages(uid, payload)
   uid:     Buffer(7)  — chip UID from NFC SDK
+  payload: Buffer(80) or Buffer(144) — pages 0x04–0x27 from NFC SDK
   Primary constructor for NFC SDK integration. Preferred in production.
 
 TigerTag.fromDump(data)

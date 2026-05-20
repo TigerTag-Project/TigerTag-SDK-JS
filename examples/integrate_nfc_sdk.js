@@ -38,7 +38,7 @@ const { TigerTag } = require(path.join(__dirname, '..', 'src', 'index'));
 //   mifare.close()
 //
 //   // In a Kotlin/JS or bridge context:
-//   val tag = TigerTag.fromPages(payload, uid)
+//   val tag = TigerTag.fromPages(uid, payload)
 
 
 // =============================================================================
@@ -56,7 +56,7 @@ const { TigerTag } = require(path.join(__dirname, '..', 'src', 'index'));
 //           // … collect 36 pages × 4 bytes = 144 bytes
 //
 //           // Pass to TigerTag (via React Native, Capacitor, or a Node.js bridge):
-//           // tag = TigerTag.fromPages(Buffer.from(payload), Buffer.from(uid))
+//           // tag = TigerTag.fromPages(Buffer.from(uid), Buffer.from(payload))
 //       }
 //   }
 
@@ -81,7 +81,7 @@ const { TigerTag } = require(path.join(__dirname, '..', 'src', 'index'));
 //
 //   // In a Dart↔JS bridge or Node.js Dart interop:
 //   // const uid     = Buffer.from(uidHex, 'hex');
-//   // const tag     = TigerTag.fromPages(Buffer.from(payload), uid);
+//   // const tag     = TigerTag.fromPages(uid, Buffer.from(payload));
 
 
 // =============================================================================
@@ -102,7 +102,7 @@ const { TigerTag } = require(path.join(__dirname, '..', 'src', 'index'));
 //               // nfc-pcsc read(startPage, length, pageSize)
 //               const payload = await reader.read(4, 144, 4);
 //
-//               const tag = TigerTag.fromPages(payload, uid);
+//               const tag = TigerTag.fromPages(uid, payload);
 //               console.log(tag.pretty());
 //               console.log(String(tag.verify()));
 //           } catch (err) {
@@ -123,7 +123,7 @@ const { TigerTag } = require(path.join(__dirname, '..', 'src', 'index'));
 //
 //   // Called from your NFC reader callback
 //   function parseTigerTag(payload, uid) {
-//       const tag = TigerTag.fromPages(Buffer.from(payload), Buffer.from(uid));
+//       const tag = TigerTag.fromPages(Buffer.from(uid), Buffer.from(payload));
 //       const db  = new TigerTagDB();
 //       return {
 //           dict: tag.toDict(db),
@@ -164,7 +164,7 @@ const { TigerTag } = require(path.join(__dirname, '..', 'src', 'index'));
 //   // port.on('data', (data) => {
 //   //     const uid     = data.subarray(0, 7);
 //   //     const payload = data.subarray(7, 151);
-//   //     const tag     = TigerTag.fromPages(payload, uid);
+//   //     const tag     = TigerTag.fromPages(uid, payload);
 //   //     console.log(tag.pretty());
 //   // });
 
@@ -211,7 +211,7 @@ function main() {
   console.log(`  Payload size: ${payload.length} bytes`);
   console.log();
 
-  const tag = TigerTag.fromPages(payload, uid);
+  const tag = TigerTag.fromPages(uid, payload);
   console.log(tag.pretty());
 }
 
