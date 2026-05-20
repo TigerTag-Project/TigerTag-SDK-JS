@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: ["18", "20", "22"]
+        node-version: ["18", "20", "22", "24"]
 
     steps:
       - uses: actions/checkout@v4
@@ -23,8 +23,8 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
 
-      - name: Install dev dependencies
-        run: npm ci
+      - name: Install dependencies (skip optional native modules)
+        run: npm ci --omit=optional
 
       - name: Run tests
         run: npm test

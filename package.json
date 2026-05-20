@@ -48,7 +48,9 @@
     "playground": "node tools/server.js"
   },
   "devDependencies": {
-    "jest": "^29.0.0",
+    "jest": "^29.0.0"
+  },
+  "optionalDependencies": {
     "nfc-pcsc": "^0.8.1",
     "ws": "^8.20.1"
   }
