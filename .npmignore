@@ -2,6 +2,8 @@
 test/
 scripts/
 examples/
+tools/
+assets/
 .github/
 .gitignore
 CHANGELOG.md

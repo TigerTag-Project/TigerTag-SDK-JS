@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 526" width="680">
+  <defs>
+    <style>
+      .bg     { fill: #ffffff; }
+      .hdbg   { fill: #f1f5f9; }
+      .rowbg  { fill: #f8fafc; }
+      .title  { font: 700 13px system-ui,-apple-system,'Segoe UI',sans-serif; fill: #0f172a; }
+      .sub    { font: 400 10px system-ui,-apple-system,'Segoe UI',sans-serif; fill: #64748b; }
+      .chdr   { font: 700 10px system-ui,-apple-system,'Segoe UI',sans-serif; fill: #475569; }
+      .mono   { font: 400 10.5px 'Courier New',Courier,monospace; fill: #334155; }
+      .field  { font: 400 10.5px system-ui,-apple-system,'Segoe UI',sans-serif; fill: #1e293b; }
+      .cat    { font: 600 9px system-ui,-apple-system,'Segoe UI',sans-serif; fill: #94a3b8; }
+      .legend { font: 400 10px system-ui,-apple-system,'Segoe UI',sans-serif; fill: #475569; }
+      .lgnd-b { font: 700 10px system-ui,-apple-system,'Segoe UI',sans-serif; fill: #334155; }
+      .sep    { stroke: #e2e8f0; stroke-width: 1; }
+      .vsep   { stroke: #e2e8f0; stroke-width: 0.5; }
+    </style>
+  </defs>
+
+  <!-- Card background -->
+  <rect width="680" height="526" rx="8" class="bg" stroke="#e2e8f0" stroke-width="1.5"/>
+
+  <!-- Title area -->
+  <rect x="1" y="1" width="678" height="46" rx="8" class="hdbg"/>
+  <rect x="1" y="38" width="678" height="8" class="hdbg"/>
+  <line x1="1" y1="46" x2="679" y2="46" class="sep"/>
+
+  <text x="340" y="19" text-anchor="middle" class="title">NTAG Chip Memory Layout</text>
+  <text x="340" y="35" text-anchor="middle" class="sub">Pages 0x04–0x27 · 144 bytes user data · TigerTag Open Source v2.1 · NTAG213 / 215 / 216 compatible</text>
+
+  <!-- Column header row -->
+  <rect x="1" y="46" width="678" height="24" class="hdbg"/>
+  <line x1="1" y1="70" x2="679" y2="70" class="sep"/>
+  <text x="54"  y="62" text-anchor="middle" class="chdr">PAGE</text>
+  <text x="112" y="62" text-anchor="middle" class="chdr">OFFSET</text>
+  <text x="158" y="62" text-anchor="middle" class="chdr">SIZE</text>
+  <text x="390" y="62" text-anchor="middle" class="chdr">FIELD DESCRIPTION</text>
+  <text x="636" y="62" text-anchor="middle" class="chdr">CATEGORY</text>
+
+  <!-- Vertical separators for columns -->
+  <line x1="84"  y1="46" x2="84"  y2="456" class="vsep"/>
+  <line x1="136" y1="46" x2="136" y2="456" class="vsep"/>
+  <line x1="180" y1="46" x2="180" y2="456" class="vsep"/>
+  <line x1="570" y1="46" x2="570" y2="456" class="vsep"/>
+
+  <!-- ── ROW 0 — 0x04 — ID TigerTag ── -->
+  <rect x="1"   y="70" width="5"   height="24" fill="#f97316"/>
+  <rect x="6"   y="70" width="678" height="24" fill="transparent"/>
+  <text x="54"  y="86" text-anchor="middle" class="mono">0x04</text>
+  <text x="112" y="86" text-anchor="middle" class="mono">+0</text>
+  <text x="158" y="86" text-anchor="middle" class="mono">4 B</text>
+  <text x="184" y="86" class="field">ID TigerTag — magic number identifying chip type (u32 BE)</text>
+  <text x="636" y="86" text-anchor="middle" class="cat">Header</text>
+  <line x1="1" y1="94" x2="679" y2="94" class="sep"/>
+
+  <!-- ── ROW 1 — 0x05 — ID Product ── -->
+  <rect x="1"   y="94" width="5"   height="24" fill="#f97316"/>
+  <rect x="6"   y="94" width="678" height="24" class="rowbg"/>
+  <text x="54"  y="110" text-anchor="middle" class="mono">0x05</text>
+  <text x="112" y="110" text-anchor="middle" class="mono">+4</text>
+  <text x="158" y="110" text-anchor="middle" class="mono">4 B</text>
+  <text x="184" y="110" class="field">ID Product — cloud product ID, or 0xFFFFFFFF (Maker) / 0x00000000 (Init)</text>
+  <text x="636" y="110" text-anchor="middle" class="cat">Header</text>
+  <line x1="1" y1="118" x2="679" y2="118" class="sep"/>
+
+  <!-- ── ROW 2 — 0x06 — Material + Aspects ── -->
+  <rect x="1"   y="118" width="5"   height="24" fill="#3b82f6"/>
+  <rect x="6"   y="118" width="678" height="24" fill="transparent"/>
+  <text x="54"  y="134" text-anchor="middle" class="mono">0x06</text>
+  <text x="112" y="134" text-anchor="middle" class="mono">+8</text>
+  <text x="158" y="134" text-anchor="middle" class="mono">4 B</text>
+  <text x="184" y="134" class="field">ID Material (u16 BE) · ID Aspect 1 (u8) · ID Aspect 2 (u8)</text>
+  <text x="636" y="134" text-anchor="middle" class="cat">Material</text>
+  <line x1="1" y1="142" x2="679" y2="142" class="sep"/>
+
+  <!-- ── ROW 3 — 0x07 — Type + Diameter + Brand ── -->
+  <rect x="1"   y="142" width="5"   height="24" fill="#3b82f6"/>
+  <rect x="6"   y="142" width="678" height="24" class="rowbg"/>
+  <text x="54"  y="158" text-anchor="middle" class="mono">0x07</text>
+  <text x="112" y="158" text-anchor="middle" class="mono">+12</text>
+  <text x="158" y="158" text-anchor="middle" class="mono">4 B</text>
+  <text x="184" y="158" class="field">ID Type (u8) · ID Diameter (u8) · ID Brand (u16 BE)</text>
+  <text x="636" y="158" text-anchor="middle" class="cat">Material</text>
+  <line x1="1" y1="166" x2="679" y2="166" class="sep"/>
+
+  <!-- ── ROW 4 — 0x08 — Color 1 ── -->
+  <rect x="1"   y="166" width="5"   height="24" fill="#db2777"/>
+  <rect x="6"   y="166" width="678" height="24" fill="transparent"/>
+  <text x="54"  y="182" text-anchor="middle" class="mono">0x08</text>
+  <text x="112" y="182" text-anchor="middle" class="mono">+16</text>
+  <text x="158" y="182" text-anchor="middle" class="mono">4 B</text>
+  <text x="184" y="182" class="field">Color 1 — RGBA (4 bytes: R · G · B · Alpha)</text>
+  <text x="636" y="182" text-anchor="middle" class="cat">Colors</text>
+  <line x1="1" y1="190" x2="679" y2="190" class="sep"/>
+
+  <!-- ── ROW 5 — 0x09 — Measure + Unit ── -->
+  <rect x="1"   y="190" width="5"   height="24" fill="#0891b2"/>
+  <rect x="6"   y="190" width="678" height="24" class="rowbg"/>
+  <text x="54"  y="206" text-anchor="middle" class="mono">0x09</text>
+  <text x="112" y="206" text-anchor="middle" class="mono">+20</text>
+  <text x="158" y="206" text-anchor="middle" class="mono">4 B</text>
+  <text x="184" y="206" class="field">Measure (u24 BE, in measure unit) · ID Measure Unit (u8)</text>
+  <text x="636" y="206" text-anchor="middle" class="cat">Quantity</text>
+  <line x1="1" y1="214" x2="679" y2="214" class="sep"/>
+
+  <!-- ── ROW 6 — 0x0A — Nozzle temps ── -->
+  <rect x="1"   y="214" width="5"   height="24" fill="#059669"/>
+  <rect x="6"   y="214" width="678" height="24" fill="transparent"/>
+  <text x="54"  y="230" text-anchor="middle" class="mono">0x0A</text>
+  <text x="112" y="230" text-anchor="middle" class="mono">+24</text>
+  <text x="158" y="230" text-anchor="middle" class="mono">4 B</text>
+  <text x="184" y="230" class="field">Nozzle Temp Min (u16 BE, °C) · Nozzle Temp Max (u16 BE, °C)</text>
+  <text x="636" y="230" text-anchor="middle" class="cat">Print</text>
+  <line x1="1" y1="238" x2="679" y2="238" class="sep"/>
+
+  <!-- ── ROW 7 — 0x0B — Dry + Bed temps ── -->
+  <rect x="1"   y="238" width="5"   height="24" fill="#059669"/>
+  <rect x="6"   y="238" width="678" height="24" class="rowbg"/>
+  <text x="54"  y="254" text-anchor="middle" class="mono">0x0B</text>
+  <text x="112" y="254" text-anchor="middle" class="mono">+28</text>
+  <text x="158" y="254" text-anchor="middle" class="mono">4 B</text>
+  <text x="184" y="254" class="field">Dry Temp (u8, °C) · Dry Time (u8, h) · Bed Min (u8, °C) · Bed Max (u8, °C)</text>
+  <text x="636" y="254" text-anchor="middle" class="cat">Print</text>
+  <line x1="1" y1="262" x2="679" y2="262" class="sep"/>
+
+  <!-- ── ROW 8 — 0x0C — Timestamp ── -->
+  <rect x="1"   y="262" width="5"   height="24" fill="#7c3aed"/>
+  <rect x="6"   y="262" width="678" height="24" fill="transparent"/>
+  <text x="54"  y="278" text-anchor="middle" class="mono">0x0C</text>
+  <text x="112" y="278" text-anchor="middle" class="mono">+32</text>
+  <text x="158" y="278" text-anchor="middle" class="mono">4 B</text>
+  <text x="184" y="278" class="field">Manufacturing date — seconds since 2000-01-01 00:00:00 UTC (u32 BE)</text>
+  <text x="636" y="278" text-anchor="middle" class="cat">Metadata</text>
+  <line x1="1" y1="286" x2="679" y2="286" class="sep"/>
+
+  <!-- ── ROW 9 — 0x0D — Color 2 ── -->
+  <rect x="1"   y="286" width="5"   height="24" fill="#db2777"/>
+  <rect x="6"   y="286" width="678" height="24" class="rowbg"/>
+  <text x="54"  y="302" text-anchor="middle" class="mono">0x0D</text>
+  <text x="112" y="302" text-anchor="middle" class="mono">+36</text>
+  <text x="158" y="302" text-anchor="middle" class="mono">4 B</text>
+  <text x="184" y="302" class="field">Color 2 — RGB (3 bytes) · padding</text>
+  <text x="636" y="302" text-anchor="middle" class="cat">Colors</text>
+  <line x1="1" y1="310" x2="679" y2="310" class="sep"/>
+
+  <!-- ── ROW 10 — 0x0E — Color 3 ── -->
+  <rect x="1"   y="310" width="5"   height="24" fill="#db2777"/>
+  <rect x="6"   y="310" width="678" height="24" fill="transparent"/>
+  <text x="54"  y="326" text-anchor="middle" class="mono">0x0E</text>
+  <text x="112" y="326" text-anchor="middle" class="mono">+40</text>
+  <text x="158" y="326" text-anchor="middle" class="mono">4 B</text>
+  <text x="184" y="326" class="field">Color 3 — RGB (3 bytes) · padding</text>
+  <text x="636" y="326" text-anchor="middle" class="cat">Colors</text>
+  <line x1="1" y1="334" x2="679" y2="334" class="sep"/>
+
+  <!-- ── ROW 11 — 0x0F — HueForge TD ── -->
+  <rect x="1"   y="334" width="5"   height="24" fill="#db2777"/>
+  <rect x="6"   y="334" width="678" height="24" class="rowbg"/>
+  <text x="54"  y="350" text-anchor="middle" class="mono">0x0F</text>
+  <text x="112" y="350" text-anchor="middle" class="mono">+44</text>
+  <text x="158" y="350" text-anchor="middle" class="mono">4 B</text>
+  <text x="184" y="350" class="field">HueForge Transmission Distance — u16 BE (value ÷ 10) · reserved (2 B)</text>
+  <text x="636" y="350" text-anchor="middle" class="cat">Colors</text>
+  <line x1="1" y1="358" x2="679" y2="358" class="sep"/>
+
+  <!-- ── ROW 12 — 0x10–0x16 — Custom message ── -->
+  <rect x="1"   y="358" width="5"   height="24" fill="#7c3aed"/>
+  <rect x="6"   y="358" width="678" height="24" fill="transparent"/>
+  <text x="54"  y="374" text-anchor="middle" class="mono">0x10–16</text>
+  <text x="112" y="374" text-anchor="middle" class="mono">+48</text>
+  <text x="158" y="374" text-anchor="middle" class="mono">28 B</text>
+  <text x="184" y="374" class="field">Custom message — UTF-8 free text, null-padded (7 pages)</text>
+  <text x="636" y="374" text-anchor="middle" class="cat">Metadata</text>
+  <line x1="1" y1="382" x2="679" y2="382" class="sep"/>
+
+  <!-- ── ROW 13 — 0x17 — Available qty ── -->
+  <rect x="1"   y="382" width="5"   height="24" fill="#0891b2"/>
+  <rect x="6"   y="382" width="678" height="24" class="rowbg"/>
+  <text x="54"  y="398" text-anchor="middle" class="mono">0x17</text>
+  <text x="112" y="398" text-anchor="middle" class="mono">+76</text>
+  <text x="158" y="398" text-anchor="middle" class="mono">4 B</text>
+  <text x="184" y="398" class="field">Available quantity (u24 BE, in measure unit) · Stock % (u8)</text>
+  <text x="636" y="398" text-anchor="middle" class="cat">Quantity</text>
+  <line x1="1" y1="406" x2="679" y2="406" class="sep"/>
+
+  <!-- ── ROW 14 — 0x18–0x1F — Signature R ── -->
+  <rect x="1"   y="406" width="5"   height="24" fill="#94a3b8"/>
+  <rect x="6"   y="406" width="678" height="24" fill="transparent"/>
+  <text x="54"  y="422" text-anchor="middle" class="mono">0x18–1F</text>
+  <text x="112" y="422" text-anchor="middle" class="mono">+80</text>
+  <text x="158" y="422" text-anchor="middle" class="mono">32 B</text>
+  <text x="184" y="422" class="field">ECDSA-P256 Signature R — chip authentication (optional)</text>
+  <text x="636" y="422" text-anchor="middle" class="cat">Signature</text>
+  <line x1="1" y1="430" x2="679" y2="430" class="sep"/>
+
+  <!-- ── ROW 15 — 0x20–0x27 — Signature S ── -->
+  <rect x="1"   y="430" width="5"   height="24" fill="#94a3b8"/>
+  <rect x="6"   y="430" width="678" height="24" class="rowbg"/>
+  <text x="54"  y="446" text-anchor="middle" class="mono">0x20–27</text>
+  <text x="112" y="446" text-anchor="middle" class="mono">+112</text>
+  <text x="158" y="446" text-anchor="middle" class="mono">32 B</text>
+  <text x="184" y="446" class="field">ECDSA-P256 Signature S — chip authentication (optional)</text>
+  <text x="636" y="446" text-anchor="middle" class="cat">Signature</text>
+  <line x1="1" y1="454" x2="679" y2="454" class="sep"/>
+
+  <!-- Legend area -->
+  <rect x="1" y="454" width="678" height="70" class="hdbg" rx="0"/>
+  <rect x="1" y="518" width="678" height="8" class="hdbg" rx="8"/>
+
+  <text x="20" y="474" class="lgnd-b">Category legend:</text>
+
+  <!-- Legend items row 1 -->
+  <rect x="115" y="463" width="10" height="10" rx="2" fill="#f97316"/>
+  <text x="130" y="473" class="legend">Header (magic + product ID)</text>
+
+  <rect x="285" y="463" width="10" height="10" rx="2" fill="#3b82f6"/>
+  <text x="300" y="473" class="legend">Material (type, brand, diameter, aspects)</text>
+
+  <rect x="495" y="463" width="10" height="10" rx="2" fill="#db2777"/>
+  <text x="510" y="473" class="legend">Colors (RGBA + HueForge TD)</text>
+
+  <!-- Legend items row 2 -->
+  <rect x="20"  y="484" width="10" height="10" rx="2" fill="#059669"/>
+  <text x="35"  y="494" class="legend">Print settings (nozzle, dry, bed temps)</text>
+
+  <rect x="225" y="484" width="10" height="10" rx="2" fill="#0891b2"/>
+  <text x="240" y="494" class="legend">Quantity (measure + available stock)</text>
+
+  <rect x="415" y="484" width="10" height="10" rx="2" fill="#7c3aed"/>
+  <text x="430" y="494" class="legend">Metadata (timestamp, custom message)</text>
+
+  <rect x="20" y="504" width="10" height="10" rx="2" fill="#94a3b8"/>
+  <text x="35" y="514" class="legend">Signature (ECDSA-P256, 64 bytes total) — optional, present on TigerTag+ and signed Maker tags</text>
+</svg>

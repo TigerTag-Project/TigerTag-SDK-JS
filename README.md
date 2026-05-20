@@ -1,3 +1,5 @@
+<img src="assets/banner.svg" width="100%" alt="TigerTag JavaScript SDK — Open-source RFID protocol for manufacturing material identification">
+
 # TigerTag JavaScript SDK
 
 [![npm](https://img.shields.io/npm/v/tigertag?color=blue)](https://www.npmjs.com/package/tigertag)
@@ -98,6 +100,33 @@ without any manual entry.
 
 **Everything is free for end users**: the protocol, this SDK, TigerTag Studio Manager,
 the mobile apps, and all community tools. No subscription, no lock-in.
+
+---
+
+## ▶ Try the Playground
+
+No NFC hardware required — explore the full SDK output directly in your browser.
+
+<img src="assets/badge_playground.svg" width="260" alt="Launch Playground">
+
+```bash
+# Start the dev server
+node tools/server.js 7432
+
+# Open in browser
+open http://localhost:7432/tools/playground.html
+```
+
+Or via npm:
+
+```bash
+npm run playground
+```
+
+The playground has three panels:
+- **Left** — generate TigerTag / TigerTag+ / Init tags with presets or custom values
+- **Center** — parsed output cards: Protocol, Material, Colors, Print Settings, Quantity, Traceability, Cloud API
+- **Right** — collapsible SDK panel: `pretty()`, `verify()`, `toRawDict()`, `toDict()`, `rawApi()`, `diffApi()`
 
 ---
 

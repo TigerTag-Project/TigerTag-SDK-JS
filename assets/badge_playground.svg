@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 32" width="260" height="32">
+  <defs>
+    <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="grad2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fb923c"/>
+      <stop offset="100%" stop-color="#ea580c"/>
+    </linearGradient>
+    <clipPath id="clip">
+      <rect width="260" height="32" rx="6"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#clip)">
+    <!-- Left section: dark navy -->
+    <rect x="0" y="0" width="142" height="32" fill="url(#grad)"/>
+    <!-- Right section: orange accent -->
+    <rect x="142" y="0" width="118" height="32" fill="url(#grad2)"/>
+
+    <!-- Separator -->
+    <line x1="142" y1="0" x2="142" y2="32" stroke="#0f172a" stroke-width="1" stroke-opacity="0.3"/>
+
+    <!-- TigerTag label (left) -->
+    <text x="16" y="12" font-family="system-ui,-apple-system,sans-serif" font-size="8" font-weight="700"
+          fill="#94a3b8" letter-spacing="1">TIGERTAG SDK</text>
+
+    <!-- Play icon + text (left, prominent) -->
+    <text x="16" y="25" font-family="system-ui,-apple-system,sans-serif" font-size="11" font-weight="600"
+          fill="#f1f5f9">▶  Interactive</text>
+    <text x="106" y="25" font-family="system-ui,-apple-system,sans-serif" font-size="11" font-weight="600"
+          fill="#fed7aa"> Playground</text>
+
+    <!-- Right label: port -->
+    <text x="152" y="14" font-family="'Courier New',Courier,monospace" font-size="9" fill="#fff7ed" font-weight="700">localhost:7432</text>
+    <text x="152" y="26" font-family="system-ui,-apple-system,sans-serif" font-size="9" fill="#fed7aa">No hardware needed ✓</text>
+  </g>
+
+  <!-- Border -->
+  <rect width="260" height="32" rx="6" fill="none" stroke="#1e293b" stroke-width="1" stroke-opacity="0.6"/>
+</svg>

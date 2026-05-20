@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 280" width="1200">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#0d1117"/>
+      <stop offset="100%" stop-color="#1a2332"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%"   stop-color="#f97316"/>
+      <stop offset="100%" stop-color="#fb923c"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f97316" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#f97316" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="jsgrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#f7df1e"/>
+      <stop offset="100%" stop-color="#f0b429"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="280" fill="url(#bg)"/>
+
+  <!-- Subtle grid pattern -->
+  <g stroke="#ffffff" stroke-opacity="0.03" stroke-width="1">
+    <line x1="0" y1="40"  x2="1200" y2="40"/>
+    <line x1="0" y1="80"  x2="1200" y2="80"/>
+    <line x1="0" y1="120" x2="1200" y2="120"/>
+    <line x1="0" y1="160" x2="1200" y2="160"/>
+    <line x1="0" y1="200" x2="1200" y2="200"/>
+    <line x1="0" y1="240" x2="1200" y2="240"/>
+    <line x1="100"  y1="0" x2="100"  y2="280"/>
+    <line x1="200"  y1="0" x2="200"  y2="280"/>
+    <line x1="300"  y1="0" x2="300"  y2="280"/>
+    <line x1="400"  y1="0" x2="400"  y2="280"/>
+    <line x1="500"  y1="0" x2="500"  y2="280"/>
+    <line x1="600"  y1="0" x2="600"  y2="280"/>
+    <line x1="700"  y1="0" x2="700"  y2="280"/>
+    <line x1="800"  y1="0" x2="800"  y2="280"/>
+    <line x1="900"  y1="0" x2="900"  y2="280"/>
+    <line x1="1000" y1="0" x2="1000" y2="280"/>
+    <line x1="1100" y1="0" x2="1100" y2="280"/>
+  </g>
+
+  <!-- Glow orb left -->
+  <ellipse cx="160" cy="140" rx="200" ry="160" fill="url(#glow)"/>
+
+  <!-- Orange accent bar left -->
+  <rect x="0" y="0" width="6" height="280" fill="url(#accent)"/>
+
+  <!-- Orange accent line bottom -->
+  <rect x="6" y="272" width="1194" height="3" fill="#f97316" opacity="0.4"/>
+
+  <!-- RFID chip icon -->
+  <g transform="translate(80, 90)">
+    <rect x="0" y="0" width="60" height="60" rx="8" fill="#f97316" opacity="0.15" stroke="#f97316" stroke-width="1.5" stroke-opacity="0.6"/>
+    <rect x="16" y="16" width="28" height="28" rx="3" fill="none" stroke="#f97316" stroke-width="1.5" stroke-opacity="0.8"/>
+    <line x1="0" y1="22" x2="-10" y2="22" stroke="#f97316" stroke-width="1.5" stroke-opacity="0.6"/>
+    <line x1="0" y1="32" x2="-10" y2="32" stroke="#f97316" stroke-width="1.5" stroke-opacity="0.6"/>
+    <line x1="0" y1="42" x2="-10" y2="42" stroke="#f97316" stroke-width="1.5" stroke-opacity="0.6"/>
+    <line x1="60" y1="22" x2="70" y2="22" stroke="#f97316" stroke-width="1.5" stroke-opacity="0.6"/>
+    <line x1="60" y1="32" x2="70" y2="32" stroke="#f97316" stroke-width="1.5" stroke-opacity="0.6"/>
+    <line x1="60" y1="42" x2="70" y2="42" stroke="#f97316" stroke-width="1.5" stroke-opacity="0.6"/>
+    <line x1="18" y1="0" x2="18" y2="-10" stroke="#f97316" stroke-width="1.5" stroke-opacity="0.6"/>
+    <line x1="30" y1="0" x2="30" y2="-10" stroke="#f97316" stroke-width="1.5" stroke-opacity="0.6"/>
+    <line x1="42" y1="0" x2="42" y2="-10" stroke="#f97316" stroke-width="1.5" stroke-opacity="0.6"/>
+    <line x1="18" y1="60" x2="18" y2="70" stroke="#f97316" stroke-width="1.5" stroke-opacity="0.6"/>
+    <line x1="30" y1="60" x2="30" y2="70" stroke="#f97316" stroke-width="1.5" stroke-opacity="0.6"/>
+    <line x1="42" y1="60" x2="42" y2="70" stroke="#f97316" stroke-width="1.5" stroke-opacity="0.6"/>
+    <path d="M 78 20 Q 95 30 95 40 Q 95 50 78 60" fill="none" stroke="#f97316" stroke-width="1.5" stroke-opacity="0.5"/>
+    <path d="M 84 24 Q 105 34 105 40 Q 105 46 84 56" fill="none" stroke="#f97316" stroke-width="1.5" stroke-opacity="0.3"/>
+  </g>
+
+  <!-- JS badge -->
+  <g transform="translate(158, 80)">
+    <rect x="0" y="0" width="34" height="34" rx="5" fill="url(#jsgrad)"/>
+    <text x="17" y="24" text-anchor="middle" font-family="'Courier New',Courier,monospace"
+          font-size="15" font-weight="900" fill="#1a1a1a">JS</text>
+  </g>
+
+  <!-- Main title -->
+  <text x="200" y="118" font-family="system-ui,-apple-system,'Segoe UI',sans-serif"
+        font-size="58" font-weight="800" fill="#ffffff" letter-spacing="-1">TigerTag JavaScript SDK</text>
+
+  <!-- Tagline -->
+  <text x="202" y="155" font-family="system-ui,-apple-system,'Segoe UI',sans-serif"
+        font-size="19" fill="#94a3b8" letter-spacing="0.3">
+    Open-source RFID protocol for manufacturing material identification
+  </text>
+
+  <!-- Stat pills -->
+  <rect x="202" y="175" width="175" height="30" rx="15" fill="#f97316" fill-opacity="0.12" stroke="#f97316" stroke-width="1" stroke-opacity="0.4"/>
+  <text x="290" y="195" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="12" font-weight="600" fill="#fb923c">⬡ 2 000 000+ chips</text>
+
+  <rect x="388" y="175" width="130" height="30" rx="15" fill="#10b981" fill-opacity="0.12" stroke="#10b981" stroke-width="1" stroke-opacity="0.4"/>
+  <text x="453" y="195" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="12" font-weight="600" fill="#34d399">✓ 100% offline</text>
+
+  <rect x="530" y="175" width="120" height="30" rx="15" fill="#3b82f6" fill-opacity="0.12" stroke="#3b82f6" stroke-width="1" stroke-opacity="0.4"/>
+  <text x="590" y="195" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="12" font-weight="600" fill="#60a5fa">⊕ GPLv3 free</text>
+
+  <rect x="662" y="175" width="155" height="30" rx="15" fill="#8b5cf6" fill-opacity="0.12" stroke="#8b5cf6" stroke-width="1" stroke-opacity="0.4"/>
+  <text x="740" y="195" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="12" font-weight="600" fill="#a78bfa">⬡ ECDSA-P256 auth</text>
+
+  <!-- Node.js badge -->
+  <rect x="830" y="175" width="120" height="30" rx="15" fill="#f7df1e" fill-opacity="0.10" stroke="#f7df1e" stroke-width="1" stroke-opacity="0.35"/>
+  <text x="890" y="195" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="12" font-weight="600" fill="#f7df1e">⬡ Node.js 18+</text>
+
+  <!-- Right side -->
+  <text x="1140" y="96"  text-anchor="end" font-family="system-ui,-apple-system,sans-serif" font-size="11" fill="#475569">Adopted by</text>
+  <text x="1140" y="116" text-anchor="end" font-family="system-ui,-apple-system,sans-serif" font-size="13" font-weight="700" fill="#64748b">eSun · Rosa3D · Sunlu</text>
+  <text x="1140" y="134" text-anchor="end" font-family="system-ui,-apple-system,sans-serif" font-size="13" font-weight="700" fill="#64748b">R3D · Landu · and more</text>
+
+  <text x="1140" y="164" text-anchor="end" font-family="system-ui,-apple-system,sans-serif" font-size="11" fill="#475569">Works with</text>
+  <text x="1140" y="182" text-anchor="end" font-family="system-ui,-apple-system,sans-serif" font-size="12" font-weight="600" fill="#64748b">Snapmaker · Bambu Lab</text>
+  <text x="1140" y="198" text-anchor="end" font-family="system-ui,-apple-system,sans-serif" font-size="12" font-weight="600" fill="#64748b">FlashForge · Elegoo · Creality</text>
+
+  <!-- Vertical separator right -->
+  <line x1="960" y1="60" x2="960" y2="220" stroke="#ffffff" stroke-opacity="0.06" stroke-width="1"/>
+
+  <!-- Protocol version bottom right -->
+  <text x="1140" y="240" text-anchor="end" font-family="'Courier New',Courier,monospace" font-size="11" fill="#374151">Protocol v2.1 · NTAG213/215/216 · ISO 14443-3</text>
+</svg>
