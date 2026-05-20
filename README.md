@@ -612,8 +612,8 @@ node scripts/generate_fixtures.js
 | [**TigerTag-SDK-JS**](https://github.com/TigerTag-Project/TigerTag-SDK-JS) | Node.js | **This SDK** — parse, verify, write, diff |
 | [TigerTag-SDK-Python](https://github.com/TigerTag-Project/TigerTag-SDK-Python) | Python | Python port — parse, verify, write, diff |
 | [TigerTag Studio Manager](https://github.com/TigerTag-Project/TigerTag-Studio-Manager) | Windows / macOS / Linux | Open-source desktop inventory manager — works with TigerTag Pod and ACR122U |
-| [TigerTag RFID Connect](https://apps.apple.com/fr/app/tigertag-rfid-connect/id6745437963) | iOS | Official mobile app — read/write via TigerTag Pod |
-| [TigerTag RFID Connect](https://play.google.com/store/apps/details?id=com.tigertag.connect) | Android | Official mobile app — read/write via TigerTag Pod |
+| [TigerTag RFID Connect](https://apps.apple.com/fr/app/tigertag-rfid-connect/id6745437963) | iOS | Official mobile app — read/write using the phone's built-in NFC |
+| [TigerTag RFID Connect](https://play.google.com/store/apps/details?id=com.tigertag.connect) | Android | Official mobile app — read/write using the phone's built-in NFC |
 | [TigerTag Firebase Integration](https://github.com/TigerTag-Project/TigerTag_Firebase_Integration) | Cloud | Firebase backend integration example |
 | [Tiger Scale](https://github.com/TigerTag-Project/Tiger-Scale) | ESP32 firmware | Open-source firmware for the DIY smart scale |
 
