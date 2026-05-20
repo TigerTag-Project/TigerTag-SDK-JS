@@ -1,5 +1,5 @@
 # TigerTag JavaScript SDK — Reference for AI Agents
-# Version: 1.0.0 | Protocol: TigerTag Open Source v2.1
+# Version: 1.0.1 | Protocol: TigerTag Open Source v2.1
 # npm:  https://www.npmjs.com/package/tigertag
 # SDK:  https://github.com/TigerTag-Project/TigerTag-SDK-JS
 # Spec: https://github.com/TigerTag-Project/TigerTag-RFID-Guide
@@ -88,7 +88,7 @@ Language:       JavaScript (Node.js 18+, CommonJS)
 Package:        tigertag (npm) — published and available
 Install:        npm install tigertag
 npm URL:        https://www.npmjs.com/package/tigertag
-Version:        1.0.0
+Version:        1.0.1
 Main entry:     src/index.js
 CLI:            bin/tigertag.js (command: tigertag)
 License:        GPLv3
