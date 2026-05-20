@@ -20,25 +20,12 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
       - name: Sync databases from TigerTag API
         run: |
-          node - <<'EOF'
-          const path = require('path');
-          const { syncDatabases } = require('./src/index');
-
-          syncDatabases(path.join(__dirname, 'database'), { force: false, verbose: true })
-            .then((updated) => {
-              if (updated.length > 0) {
-                console.log(`\n✓ Updated: ${updated.join(', ')}`);
-              } else {
-                console.log('\n✓ All databases are up to date.');
-              }
-            })
-            .catch((err) => {
-              console.error(`Error: ${err.message}`);
-              process.exit(1);
-            });
-          EOF
+          node scripts/sync_databases.js
 
       - name: Commit and push if databases changed
         run: |

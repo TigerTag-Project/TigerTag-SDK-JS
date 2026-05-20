@@ -44,6 +44,7 @@
   "scripts": {
     "test": "jest --testPathPattern=test/",
     "generate-fixtures": "node scripts/generate_fixtures.js",
+    "sync-db": "node scripts/sync_databases.js",
     "playground": "node tools/server.js"
   },
   "devDependencies": {

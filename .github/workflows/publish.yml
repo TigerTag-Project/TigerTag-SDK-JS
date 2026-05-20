@@ -1,12 +1,14 @@
 name: Publish to npm
 
+# Triggers automatically when you push a version tag: git tag v1.0.2 && git push --tags
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - 'v*'
 
 jobs:
   test:
-    name: Run tests before publish
+    name: Run tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,8 +29,6 @@ jobs:
     name: Publish to npm
     needs: test
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write   # required for npm provenance
     steps:
       - uses: actions/checkout@v4
 
@@ -37,8 +37,12 @@ jobs:
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
+          cache: 'npm'
+
+      - name: Install dev dependencies
+        run: npm ci
 
       - name: Publish
-        run: npm publish --provenance --access public
+        run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
