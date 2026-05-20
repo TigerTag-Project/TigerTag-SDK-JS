@@ -1,0 +1,12 @@
+# Exclude development and CI files from the npm package
+test/
+scripts/
+examples/
+.github/
+.gitignore
+CHANGELOG.md
+SECURITY.md
+CLAUDE.md
+*.swp
+*.swo
+.DS_Store

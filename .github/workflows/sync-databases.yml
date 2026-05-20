@@ -1,0 +1,53 @@
+name: Sync TigerTag Databases
+
+on:
+  schedule:
+    - cron: '0 3 * * *'   # every day at 03:00 UTC
+  workflow_dispatch:        # manual trigger from the Actions tab
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Sync databases from TigerTag API
+        run: |
+          node - <<'EOF'
+          const path = require('path');
+          const { syncDatabases } = require('./src/index');
+
+          syncDatabases(path.join(__dirname, 'database'), { force: false, verbose: true })
+            .then((updated) => {
+              if (updated.length > 0) {
+                console.log(`\n✓ Updated: ${updated.join(', ')}`);
+              } else {
+                console.log('\n✓ All databases are up to date.');
+              }
+            })
+            .catch((err) => {
+              console.error(`Error: ${err.message}`);
+              process.exit(1);
+            });
+          EOF
+
+      - name: Commit and push if databases changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add database/
+          if git diff --cached --quiet; then
+            echo "No changes — databases are already up to date."
+          else
+            git commit -m "chore: sync TigerTag reference databases [skip ci]"
+            git push
+          fi

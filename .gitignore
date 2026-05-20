@@ -1,0 +1,29 @@
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+dist/
+build/
+.env
+
+# DO NOT ignore database/*.json — they are bundled and committed.
+# syncDatabases() updates them in place.
+
+# Test artifacts — but keep committed fixtures
+*.bin
+!test/fixtures/*.bin
+*.nfc
+coverage/
+.nyc_output/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Internal tooling (not for public repo)
+.claude/
+CLAUDE.md

@@ -1,0 +1,52 @@
+{
+  "name": "tigertag",
+  "version": "1.0.0",
+  "description": "JavaScript SDK for TigerTag RFID material identification",
+  "main": "src/index.js",
+  "bin": {
+    "tigertag": "bin/tigertag.js"
+  },
+  "files": [
+    "src/",
+    "database/",
+    "bin/",
+    "README.md",
+    "LICENSE.md",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "tigertag",
+    "rfid",
+    "nfc",
+    "materials",
+    "manufacturing",
+    "ntag213",
+    "identification",
+    "3d-printing",
+    "filament",
+    "resin",
+    "ecdsa",
+    "electron"
+  ],
+  "author": "TigerTag <tigertag@tigertag.io> (https://tigertag.io)",
+  "license": "GPL-3.0",
+  "homepage": "https://tigertag.io",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TigerTag-Project/TigerTag-SDK-JS.git"
+  },
+  "bugs": {
+    "url": "https://github.com/TigerTag-Project/TigerTag-SDK-JS/issues"
+  },
+  "scripts": {
+    "test": "jest --testPathPattern=test/",
+    "generate-fixtures": "node scripts/generate_fixtures.js",
+    "playground": "node tools/server.js"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0"
+  }
+}
