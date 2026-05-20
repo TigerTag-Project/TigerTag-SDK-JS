@@ -29,6 +29,9 @@ jobs:
     name: Publish to npm
     needs: test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write   # required for OIDC — no NPM_TOKEN secret needed
     steps:
       - uses: actions/checkout@v4
 
@@ -42,7 +45,7 @@ jobs:
       - name: Install dev dependencies
         run: npm ci
 
-      - name: Publish
-        run: npm publish --access public
+      - name: Publish with provenance (OIDC — no token needed)
+        run: npm publish --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
