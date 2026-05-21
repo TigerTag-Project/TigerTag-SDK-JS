@@ -198,6 +198,8 @@ for reading — all data lives on the chip.
 | `TigerTag.fromPages(uid, payload)` | 7-byte UID + 80 or 144 bytes | **NFC SDK integration (recommended)** |
 | `TigerTag.fromDump(data)` | 80 / 144 / 180 bytes | Binary dumps, ACR122U raw read |
 | `TigerTag.fromFile(path)` | path to `.bin` file | Testing, offline batch processing |
+| `TigerTag.fromRawDict(raw)` | `toRawDict()` output (snake_case) | Reconstruct from stored raw dict |
+| `TigerTag.fromCloudDoc(doc)` | Firestore cloud document | **Write pipeline: cloud → chip** |
 
 **`fromPages`** is the primary constructor for production use. NFC SDKs always provide the
 UID as a separate property — pass it directly for full signature verification.
@@ -243,7 +245,10 @@ tag.verify(db)                         // → SignatureResult
 TigerTag.create(fields)               // → TigerTag  build from scratch
 TigerTag.asInit(uid)                  // → TigerTag  blank Init tag
 TigerTag.erase()                      // → Buffer(80) zero bytes — write to chip to wipe
-tag.patch(fields)                     // → TigerTag  surgical field update
+TigerTag.fromRawDict(raw)             // → TigerTag  from toRawDict() snake_case object
+TigerTag.fromCloudDoc(doc)            // → TigerTag  from Firestore cloud doc (data1-data7, TD)
+tag.patch(fields)                     // → TigerTag  surgical camelCase field update
+tag.patchFromRawDict(raw)             // → TigerTag  surgical snake_case field update
 
 // Cloud (TigerTag+ only — uses built-in fetch, Node.js 18+)
 tag.rawApi(timeout)                   // → Promise<object|null>  fetch live product data
@@ -304,6 +309,40 @@ console.log(`${applied.length} field(s) updated from cloud`);
 
 **Protected fields** — `patch()` throws if you try to modify:
 `idTigertag`, `idProduct`, `uid`, `signatureR`, `signatureS`.
+
+### Cloud document → chip write pipeline
+
+`fromCloudDoc()` maps the Firestore document format to chip fields.
+Combine with `patchFromRawDict()` for surgical overrides before writing.
+
+```js
+// Full write: Firestore doc → chip bytes (80 bytes, pages 0x04–0x17)
+const tag = TigerTag.fromCloudDoc(firestoreDoc);
+const bytes = tag.toBytes();          // → Buffer(80) ready for NFC write
+
+// Surgical patch: only override td_raw and message, keep all other fields
+const patched = TigerTag.fromCloudDoc(firestoreDoc)
+  .patchFromRawDict({ td_raw: 150, message: 'Opened 2025-06' });
+const bytes = patched.toBytes();
+
+// From a stored toRawDict() snapshot — same snake_case shape
+const tag2 = TigerTag.fromRawDict(storedRawDict);
+const patched2 = tag2.patchFromRawDict({ measure_available: 650 });
+```
+
+**Firestore field mapping** used by `fromCloudDoc()`:
+
+| Firestore field | Chip field |
+|-----------------|------------|
+| `data1` | `idDiameter` |
+| `data2` | `nozzleTempMin` |
+| `data3` | `nozzleTempMax` |
+| `data4` | `dryTemp` |
+| `data5` | `dryTime` |
+| `data6` | `bedTempMin` |
+| `data7` | `bedTempMax` |
+| `TD` | `tdRaw` |
+| `weight_available` / `measure_gr` | `measureAvailable` |
 
 ### ApiDiff
 

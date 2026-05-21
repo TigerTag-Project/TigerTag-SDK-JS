@@ -946,6 +946,165 @@ class TigerTag {
     };
   }
 
+  // ── Write helpers ────────────────────────────────────────────────────────
+
+  /**
+   * Map a snake_case raw-dict partial object to the camelCase kwargs accepted
+   * by patch(). Only keys present in the input are mapped — missing keys are
+   * left untouched on the existing tag.
+   *
+   * Accepted keys: all keys produced by toRawDict() except uid / product_page_url / api_url.
+   *
+   * @param {object} raw - Partial or full toRawDict()-style object.
+   * @returns {object}   - camelCase kwargs ready for patch().
+   */
+  static _rawDictToPatchKwargs(raw) {
+    const map = {
+      id_material:      'idMaterial',
+      id_aspect1:       'idAspect1',
+      id_aspect2:       'idAspect2',
+      id_type:          'idType',
+      id_diameter:      'idDiameter',
+      id_brand:         'idBrand',
+      color_r:          'color1R',
+      color_g:          'color1G',
+      color_b:          'color1B',
+      color_a:          'color1A',
+      color_r2:         'color2R',
+      color_g2:         'color2G',
+      color_b2:         'color2B',
+      color_r3:         'color3R',
+      color_g3:         'color3G',
+      color_b3:         'color3B',
+      measure:          'measure',
+      measure_available:'measureAvailable',
+      id_unit:          'idUnit',
+      nozzle_min:       'nozzleTempMin',
+      nozzle_max:       'nozzleTempMax',
+      dry_temp:         'dryTemp',
+      dry_time:         'dryTime',
+      bed_min:          'bedTempMin',
+      bed_max:          'bedTempMax',
+      timestamp:        'timestamp',
+      td_raw:           'tdRaw',
+      message:          'customMessage',
+    };
+    const kwargs = {};
+    for (const [snakeKey, camelKey] of Object.entries(map)) {
+      if (Object.prototype.hasOwnProperty.call(raw, snakeKey)) {
+        kwargs[camelKey] = raw[snakeKey];
+      }
+    }
+    return kwargs;
+  }
+
+  /**
+   * Build a new TigerTag from a toRawDict()-style object (snake_case).
+   * Useful as the first step of a write workflow: parse a stored doc, then
+   * call toBytes() to get the binary payload ready for NFC write.
+   *
+   * Fields not present in the input fall back to safe zero / default values.
+   * Protected fields (idTigertag, idProduct) can optionally be supplied.
+   *
+   * @param {object} raw - toRawDict()-style object.
+   * @param {TigerTagDB} [db]
+   * @returns {TigerTag}
+   */
+  static fromRawDict(raw, db = null) {
+    return TigerTag.create({
+      productId:    raw.id_product  ?? MAKER_PRODUCT_ID,
+      idMaterial:   raw.id_material ?? 0,
+      idAspect1:    raw.id_aspect1  ?? 0,
+      idAspect2:    raw.id_aspect2  ?? 0,
+      idType:       raw.id_type     ?? 0,
+      idDiameter:   raw.id_diameter ?? 0,
+      idBrand:      raw.id_brand    ?? 0,
+      color1R:      raw.color_r     ?? 0,
+      color1G:      raw.color_g     ?? 0,
+      color1B:      raw.color_b     ?? 0,
+      color1A:      raw.color_a     ?? 255,
+      color2R:      raw.color_r2    ?? 0,
+      color2G:      raw.color_g2    ?? 0,
+      color2B:      raw.color_b2    ?? 0,
+      color3R:      raw.color_r3    ?? 0,
+      color3G:      raw.color_g3    ?? 0,
+      color3B:      raw.color_b3    ?? 0,
+      measure:      raw.measure     ?? 0,
+      measureAvailable: raw.measure_available ?? raw.measure ?? 0,
+      idUnit:       raw.id_unit     ?? 0,
+      nozzleTempMin: raw.nozzle_min ?? 0,
+      nozzleTempMax: raw.nozzle_max ?? 0,
+      dryTemp:      raw.dry_temp    ?? 0,
+      dryTime:      raw.dry_time    ?? 0,
+      bedTempMin:   raw.bed_min     ?? 0,
+      bedTempMax:   raw.bed_max     ?? 0,
+      timestamp:    raw.timestamp   ?? null,
+      customMessage: raw.message    ?? '',
+      tdRaw:        raw.td_raw      ?? 0,
+      db,
+    });
+  }
+
+  /**
+   * Build a new TigerTag from a Firestore cloud document.
+   * The cloud format uses data1–data7 for the temperature/diameter fields
+   * and weight_available / measure_gr for available weight.
+   *
+   * @param {object} doc - Firestore document data object.
+   * @param {TigerTagDB} [db]
+   * @returns {TigerTag}
+   */
+  static fromCloudDoc(doc, db = null) {
+    return TigerTag.create({
+      productId:    doc.id_product  ?? MAKER_PRODUCT_ID,
+      idMaterial:   doc.id_material ?? 0,
+      idAspect1:    doc.id_aspect1  ?? 0,
+      idAspect2:    doc.id_aspect2  ?? 0,
+      idType:       doc.id_type     ?? 0,
+      idDiameter:   doc.data1       ?? 0,   // data1 = id_diameter
+      idBrand:      doc.id_brand    ?? 0,
+      color1R:      doc.color_r     ?? 0,
+      color1G:      doc.color_g     ?? 0,
+      color1B:      doc.color_b     ?? 0,
+      color1A:      doc.color_a     ?? 255,
+      color2R:      doc.color_r2    ?? 0,
+      color2G:      doc.color_g2    ?? 0,
+      color2B:      doc.color_b2    ?? 0,
+      color3R:      doc.color_r3    ?? 0,
+      color3G:      doc.color_g3    ?? 0,
+      color3B:      doc.color_b3    ?? 0,
+      measure:      doc.measure     ?? 0,
+      measureAvailable: doc.weight_available ?? doc.measure_gr ?? doc.measure ?? 0,
+      idUnit:       doc.id_unit     ?? 0,
+      nozzleTempMin: doc.data2      ?? 0,   // data2 = nozzle_min
+      nozzleTempMax: doc.data3      ?? 0,   // data3 = nozzle_max
+      dryTemp:      doc.data4       ?? 0,   // data4 = dry_temp
+      dryTime:      doc.data5       ?? 0,   // data5 = dry_time
+      bedTempMin:   doc.data6       ?? 0,   // data6 = bed_min
+      bedTempMax:   doc.data7       ?? 0,   // data7 = bed_max
+      timestamp:    doc.timestamp   ?? null,
+      customMessage: doc.message    ?? '',
+      tdRaw:        doc.TD          ?? 0,   // TD = td_raw
+      db,
+    });
+  }
+
+  /**
+   * Apply a surgical patch using snake_case keys (toRawDict format).
+   * Only the supplied keys are changed — all other fields are preserved.
+   *
+   * Examples:
+   *   tag.patchFromRawDict({ td_raw: 150 })
+   *   tag.patchFromRawDict({ message: "Opened 2025-01", measure_available: 750 })
+   *   tag.patchFromRawDict({ td_raw: 0, message: "", nozzle_min: 220 })
+   *
+   * @param {object} raw - Partial toRawDict()-style object.
+   * @returns {TigerTag}  New patched instance (immutable).
+   */
+  patchFromRawDict(raw) {
+    return this.patch(TigerTag._rawDictToPatchKwargs(raw));
+  }
+
   /**
    * Return a fully-resolved object with labels, units, and semantic context.
    * Suitable for JSON serialization, API responses, or LLM context injection.

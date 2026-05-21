@@ -181,13 +181,26 @@ TigerTag.asInit(uid?)
 TigerTag.erase()
   Returns Buffer(80) of zeros — wipes a chip back to blank NDEF.
 
+TigerTag.fromRawDict(raw, db?)
+  raw: toRawDict()-style snake_case object (partial or full).
+  Reconstructs a TigerTag from a stored raw dict — e.g. for a write round-trip.
+  Missing keys fall back to safe zero/default values.
+
+TigerTag.fromCloudDoc(doc, db?)
+  doc: Firestore cloud document object.
+  Maps cloud fields to chip fields: data1=idDiameter, data2=nozzleTempMin,
+  data3=nozzleTempMax, data4=dryTemp, data5=dryTime, data6=bedTempMin,
+  data7=bedTempMax, TD=tdRaw, weight_available/measure_gr=measureAvailable.
+  Primary entry point for the cloud→chip write pipeline.
+
 
 ## INSTANCE METHODS
 
 tag.toBytes(includeSignature=false)     → Buffer(80 or 144)
 tag.toDict(db?)                         → resolved object (IDs → labels + metadata)
 tag.toRawDict()                         → raw protocol fields
-tag.patch({ ...fields })                → new TigerTag (immutable update)
+tag.patch({ ...fields })                → new TigerTag (immutable update, camelCase keys)
+tag.patchFromRawDict(raw)               → new TigerTag (immutable update, snake_case keys from toRawDict())
 tag.validate()                          → string[] warnings
 tag.verify(db?)                         → SignatureResult
 tag.pretty(db?, sigResult?)             → human-readable string

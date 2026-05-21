@@ -3,6 +3,21 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.0.2] — 2026-05-21
+
+### Added
+- `TigerTag.fromCloudDoc(doc, db?)` — build a tag from a Firestore cloud document;
+  maps `data1`–`data7` (diameter, nozzle, bed, drying), `TD`, and
+  `weight_available` / `measure_gr` to their chip fields. Primary entry point
+  for the cloud → chip write pipeline.
+- `TigerTag.fromRawDict(raw, db?)` — reconstruct a tag from a `toRawDict()` snapshot
+  (snake_case); useful for write round-trips and persistent storage.
+- `tag.patchFromRawDict(raw)` — surgical immutable update using snake_case keys
+  (same shape as `toRawDict()`); mirrors `tag.patch()` for callers that store or
+  receive snake_case dicts.
+- `TigerTag._rawDictToPatchKwargs(raw)` — static helper that maps a partial
+  snake_case dict to the camelCase kwargs accepted by `patch()`.
+
 ## [1.0.1] — 2026-05-20
 
 ### Added
