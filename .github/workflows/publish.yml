@@ -48,9 +48,8 @@ jobs:
       - name: Install dependencies (skip optional native modules)
         run: npm ci --omit=optional
 
-      - name: Publish with provenance
+      - name: Publish with provenance (OIDC Trusted Publisher)
+        # NODE_AUTH_TOKEN must NOT be set (not even to empty string) so that npm
+        # detects the GitHub OIDC environment and exchanges the token automatically.
+        # Trusted Publisher is configured on npmjs.com for this repo + publish.yml.
         run: npm publish --access public --provenance
-        env:
-          # Requires an npm Automation token (npmjs.com → Access Tokens → Generate → Automation).
-          # Automation tokens bypass 2FA in CI by design — classic/granular tokens do not.
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
