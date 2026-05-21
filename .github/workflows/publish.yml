@@ -48,5 +48,7 @@ jobs:
       - name: Install dependencies (skip optional native modules)
         run: npm ci --omit=optional
 
-      - name: Publish with provenance (OIDC — no token needed)
+      - name: Publish with provenance
         run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
