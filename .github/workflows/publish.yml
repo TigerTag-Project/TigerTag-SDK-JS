@@ -42,12 +42,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
           cache: 'npm'
-          # No registry-url — setup-node would inject an .npmrc _authToken line that
-          # sends an empty Bearer header and blocks npm's OIDC Trusted Publisher flow.
 
       - name: Install dependencies (skip optional native modules)
         run: npm ci --omit=optional
 
-      - name: Publish with provenance (OIDC Trusted Publisher — no token needed)
+      - name: Publish with provenance
         run: npm publish --access public --provenance
+        env:
+          # Requires an npm Automation token (npmjs.com → Access Tokens → Generate → Automation).
+          # Automation tokens bypass 2FA in CI by design — classic/granular tokens do not.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
