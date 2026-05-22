@@ -347,13 +347,22 @@ describe('patch()', () => {
 
 describe('create() and asInit()', () => {
   test('create returns a Maker tag by default', () => {
-    const tag = TigerTag.create({ idMaterial: 38219 });
+    const tag = TigerTag.create({
+      idMaterial: 38219, idAspect1: 104, idType: 1, idBrand: 19961,
+      color1R: 255, color1G: 255, color1B: 255, color1A: 255,
+      measure: 1000, idUnit: 1,
+    });
     expect(tag.isMaker).toBe(true);
     expect(tag.idMaterial).toBe(38219);
   });
 
   test('create with productId makes a Plus tag', () => {
-    const tag = TigerTag.create({ productId: 10, idMaterial: 38219 });
+    const tag = TigerTag.create({
+      productId: 10,
+      idMaterial: 38219, idAspect1: 104, idType: 1, idBrand: 19961,
+      color1R: 255, color1G: 255, color1B: 255, color1A: 255,
+      measure: 1000, idUnit: 1,
+    });
     expect(tag.isPlus).toBe(true);
     expect(tag.idTigertag).toBe(ID_TIGERTAG_PLUS);
   });
