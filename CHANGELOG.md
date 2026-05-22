@@ -3,6 +3,33 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.0.6] — 2026-05-22
+
+### Fixed
+- `toRawDict()` — `color_r2/g2/b2` and `color_r3/g3/b3` are forced to `0` when
+  `num_colors < 2/3`. Consumers always receive clean, zero-padded values for inactive
+  color slots; EEPROM garbage from the chip can never leak through to callers of
+  `toRawDict()`.
+- Playground `SDK Input` — `color2R/G/B` and `color3R/G/B` are omitted from the
+  `TigerTag.create()` call when the aspect indicates fewer than 2 or 3 active colors.
+  The SDK's natural default of `0` handles the zeroing; no spurious color bytes are
+  passed.
+- `_baseUnitFields()` — unrecognised `id_unit` values now return
+  `{ measure_gr: 0, measure_available_gr: 0 }` instead of `{}`. Consumers always receive a
+  defined, zero-safe value; chips with corrupt or unknown units no longer propagate garbage
+  weight values.
+
+### Added
+- `create()` now validates required fields and throws a descriptive `Error` listing every
+  missing field: `idMaterial`, `idAspect1`, `idType`, `idBrand`, `color1R`, `color1G`,
+  `color1B`, `color1A`, `measure`, `idUnit`. Validation checks **presence only** — any value
+  including `0` is accepted once the field is explicitly provided.
+- `toRawDict()` exposes two new fields derived from the aspect DB:
+  - `num_colors` — number of active color slots (1 for Basic/Silk/etc., 2 for Bicolor, 3 for
+    Tricolor/Rainbow). Aspect 2 is checked first; falls back to Aspect 1.
+  - `color_list` — `string[]` of `#RRGGBB` hex strings, one per active slot only. Consumers
+    no longer need to filter inactive slots themselves.
+
 ## [1.0.5] — 2026-05-22
 
 ### Added

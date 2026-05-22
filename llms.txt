@@ -208,8 +208,17 @@ tag.toDict(db?)                         → resolved object (IDs → labels + me
                                           (volume), measure_mm/measure_available_mm (size),
                                           measure_mm2/measure_available_mm2 (area).
                                           Already-canonical units (g/ml/mm) produce no duplicate field.
+                                          Unknown/corrupt id_unit → { measure_gr: 0, measure_available_gr: 0 } (safe zero fallback).
+TigerTag.create(fields)                 → throws Error listing missing required fields:
+                                          idMaterial, idAspect1, idType, idBrand,
+                                          color1R, color1G, color1B, color1A, measure, idUnit.
+                                          Presence-only check — 0 is a valid value once the field is provided.
 tag.toRawDict()                         → raw protocol fields (flat snake_case)
                                           same base-unit convenience fields as toDict().measure (top-level).
+                                          color_r2/g2/b2 and color_r3/g3/b3 forced to 0 when slot is inactive
+                                          (num_colors derived from aspect DB: Basic→1, Bicolor→2, Tricolor→3).
+                                          num_colors: int — number of active color slots.
+                                          color_list: string[] — #RRGGBB hex for active slots only.
 tag.patch({ ...fields })                → new TigerTag (immutable update, camelCase keys)
 tag.patchFromRawDict(raw)               → new TigerTag (immutable update, snake_case keys from toRawDict())
 tag.validate()                          → string[] warnings

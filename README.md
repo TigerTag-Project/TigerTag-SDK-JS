@@ -268,6 +268,9 @@ tag.toDict(db)                         // → object   JSON-serializable, all la
                                        //            .measure includes measure_gr/ml/mm/mm2 + measure_available_*
 tag.toRawDict()                        // → object   raw protocol fields, no resolution
                                        //            includes measure_gr/ml/mm/mm2 + measure_available_* (base-unit)
+                                       //            color_r2/g2/b2 and color_r3/g3/b3 are zeroed for inactive slots
+                                       //            num_colors — active color slot count from aspect DB (1/2/3)
+                                       //            color_list — string[] of #RRGGBB for active slots only
 tag.toBytes(includeSignature = false)  // → Buffer   re-serialize to chip bytes
 tag.validate()                         // → string[] sanity check — list of warnings
 tag.verify(db)                         // → SignatureResult

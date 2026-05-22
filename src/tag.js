@@ -424,17 +424,17 @@ class TigerTag {
   static create({
     productId     = MAKER_PRODUCT_ID,
     uid           = null,
-    idMaterial    = 0,
-    idAspect1     = 0,
+    idMaterial    = undefined,   // required
+    idAspect1     = undefined,   // required
     idAspect2     = 0,
-    idType        = 0,
+    idType        = undefined,   // required
     idDiameter    = 0,
-    idBrand       = 0,
-    color1R       = 0, color1G = 0, color1B = 0, color1A = 255,
+    idBrand       = undefined,   // required
+    color1R       = undefined, color1G = undefined, color1B = undefined, color1A = undefined, // required
     color2R       = 0, color2G = 0, color2B = 0,
     color3R       = 0, color3G = 0, color3B = 0,
-    measure       = 0,
-    idUnit        = 0,
+    measure       = undefined,   // required
+    idUnit        = undefined,   // required
     nozzleTempMin = 0,
     nozzleTempMax = 0,
     dryTemp       = 0,
@@ -455,6 +455,24 @@ class TigerTag {
       productId  = MAKER_PRODUCT_ID;
     }
 
+    // ── Required field validation ────────────────────────────────────────────
+    // Check presence only — any value (including 0) is accepted once provided.
+    const _missing = [];
+    if (idMaterial === undefined) _missing.push('idMaterial');
+    if (idAspect1  === undefined) _missing.push('idAspect1');
+    if (idType     === undefined) _missing.push('idType');
+    if (idBrand    === undefined) _missing.push('idBrand');
+    if (measure    === undefined) _missing.push('measure');
+    if (idUnit     === undefined) _missing.push('idUnit');
+    if (color1R    === undefined) _missing.push('color1R');
+    if (color1G    === undefined) _missing.push('color1G');
+    if (color1B    === undefined) _missing.push('color1B');
+    if (color1A    === undefined) _missing.push('color1A');
+    if (_missing.length > 0) {
+      throw new Error(
+        `TigerTag.create() — missing required field(s): ${_missing.join(', ')}`
+      );
+    }
     if (timestamp == null) {
       timestamp = Math.max(0, Math.floor((Date.now() - _TIGERTAG_EPOCH_MS) / 1000));
     }
@@ -1007,7 +1025,9 @@ class TigerTag {
       };
     }
 
-    return {};
+    // Unknown unit — no conversion available; return zero base-unit fields so
+    // consumers always get a defined, safe value instead of undefined/garbage.
+    return { measure_gr: 0, measure_available_gr: 0 };
   }
 
   /**
@@ -1016,6 +1036,14 @@ class TigerTag {
    * @returns {object}
    */
   toRawDict() {
+    // Active color count: aspect2 takes priority for multi-color modes
+    // (Bicolor → 2, Tricolor/Rainbow → 3). Falls back to aspect1 (Basic → 1).
+    const _db = this.db;
+    const _a2cc = (_db.aspect(this.idAspect2) || {}).color_count || 0;
+    const _a1cc = (_db.aspect(this.idAspect1) || {}).color_count || 1;
+    const numColors = _a2cc > 0 ? _a2cc : _a1cc;
+    const colorList = [this.color1Hex, this.color2Hex, this.color3Hex].slice(0, numColors);
+
     return {
       id_tigertag:        this.idTigertag,
       id_product:         this.idProduct,
@@ -1038,16 +1066,18 @@ class TigerTag {
       bed_min:            this.bedTempMin,
       bed_max:            this.bedTempMax,
       timestamp:          this.timestamp,
-      color_r2:           this.color2R,
-      color_g2:           this.color2G,
-      color_b2:           this.color2B,
-      color_r3:           this.color3R,
-      color_g3:           this.color3G,
-      color_b3:           this.color3B,
+      color_r2:           numColors >= 2 ? this.color2R : 0,
+      color_g2:           numColors >= 2 ? this.color2G : 0,
+      color_b2:           numColors >= 2 ? this.color2B : 0,
+      color_r3:           numColors >= 3 ? this.color3R : 0,
+      color_g3:           numColors >= 3 ? this.color3G : 0,
+      color_b3:           numColors >= 3 ? this.color3B : 0,
       td_raw:             this.tdRaw,
       message:            this.customMessage,
       measure_available:  this.measureAvailable,
       ...TigerTag._baseUnitFields(this.measure, this.measureAvailable, this.idUnit),
+      num_colors:         numColors,
+      color_list:         colorList,
       uid:                this.uidHex,
       product_page_url:   this.productPageUrl,
       api_url:            this.apiUrl,

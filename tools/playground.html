@@ -803,10 +803,12 @@ function opt(val, text, selected) {
 }
 
 function populateDropdowns() {
+  const _alpha = (labelFn) => (a, b) => labelFn(a).localeCompare(labelFn(b));
   const sel = (id, items, labelFn, defaultId) => {
     const el = document.getElementById(id);
     el.innerHTML = '';
-    items.forEach(i => el.appendChild(opt(i.id, labelFn(i), i.id === defaultId)));
+    [...items].sort(_alpha(labelFn))
+      .forEach(i => el.appendChild(opt(i.id, labelFn(i), i.id === defaultId)));
   };
   sel('f-material', DB.materials, m => `${m.label} (${m.id})`, 38219);
   sel('f-brand',    DB.brands,    b => `${b.name||b.label} (${b.id})`, 19961);
@@ -906,7 +908,7 @@ function generateInit() {
   const f = {
     id_tigertag: ID_TIGERTAG_INIT, id_product: 0,
     id_material:0, id_aspect1:0, id_aspect2:0, id_type:0, id_diameter:0, id_brand:0,
-    c1r:0,c1g:0,c1b:0,c1a:0, c2r:0,c2g:0,c2b:0, c3r:0,c3g:0,c3b:0,
+    c1r:0,c1g:0,c1b:0,c1a:255, c2r:0,c2g:0,c2b:0, c3r:0,c3g:0,c3b:0,
     measure:0, id_unit:0, nozzle_min:0, nozzle_max:0,
     dry_temp:0, dry_time:0, bed_min:0, bed_max:0,
     timestamp:0, td_raw:0, custom:'', avail:0, uid: uidEl.value || null, sig_r:null, sig_s:null,
@@ -1040,12 +1042,13 @@ function repopulateAspects(defaultA1, defaultA2) {
   const a2El = document.getElementById('f-aspect2');
   const curA1 = defaultA1 !== undefined ? defaultA1 : +a1El.value;
   const curA2 = defaultA2 !== undefined ? defaultA2 : +a2El.value;
+  const _byLabel = (a, b) => a.label.localeCompare(b.label);
   a1El.innerHTML = '<option value="0">None</option>';
-  DB.aspects
+  [...DB.aspects].sort(_byLabel)
     .filter(a => (a.color_count||1) <= 1 && a.id !== curA2)
     .forEach(a => a1El.appendChild(opt(a.id, `${a.label} (${a.id})`, a.id === curA1)));
   a2El.innerHTML = '<option value="0">None</option><option value="255">None / 0xFF</option>';
-  DB.aspects
+  [...DB.aspects].sort(_byLabel)
     .filter(a => a.id !== curA1)
     .forEach(a => a2El.appendChild(opt(a.id, `${a.label} (cc=${a.color_count||1})`, a.id === curA2)));
 }
@@ -1502,29 +1505,39 @@ async function renderOutput(f, payload) {
   const dictJson    = sdkOut?.dict     != null    ? JSON.stringify(sdkOut.dict,     null, 2) : '{}';
 
   // SDK Input — exact kwargs for TigerTag.create()
+  // Required fields always present; optional fields omitted when at default (0 / empty).
+  const _o = (v) => v || undefined;  // omit if 0 / falsy
   const _sdkInputRaw = {
+    // ── Required ────────────────────────────────────────────────────────────
     productId:        f.id_product >>> 0,
     idMaterial:       f.id_material,
     idAspect1:        f.id_aspect1,
-    idAspect2:        f.id_aspect2,
     idType:           f.id_type,
-    idDiameter:       f.id_diameter,
     idBrand:          f.id_brand,
-    color1R:f.c1r, color1G:f.c1g, color1B:f.c1b, color1A:f.c1a,
-    color2R:f.c2r, color2G:f.c2g, color2B:f.c2b,
-    color3R:f.c3r, color3G:f.c3g, color3B:f.c3b,
+    color1R:          f.c1r,
+    color1G:          f.c1g,
+    color1B:          f.c1b,
+    color1A:          f.c1a,
     measure:          f.measure,
-    measureAvailable: f.avail,
     idUnit:           f.id_unit,
-    nozzleTempMin:    f.nozzle_min,
-    nozzleTempMax:    f.nozzle_max,
-    dryTemp:          f.dry_temp,
-    dryTime:          f.dry_time,
-    bedTempMin:       f.bed_min,
-    bedTempMax:       f.bed_max,
-    tdRaw:            f.td_raw   || undefined,
-    customMessage:    f.custom   || undefined,
-    timestamp:        null,   // SDK sets its own write-time timestamp
+    // ── Optional — omitted when 0 / inactive ────────────────────────────────
+    idAspect2:        _o(f.id_aspect2),
+    idDiameter:       _o(f.id_diameter),
+    color2R: colorCount >= 2 ? f.c2r : undefined,
+    color2G: colorCount >= 2 ? f.c2g : undefined,
+    color2B: colorCount >= 2 ? f.c2b : undefined,
+    color3R: colorCount >= 3 ? f.c3r : undefined,
+    color3G: colorCount >= 3 ? f.c3g : undefined,
+    color3B: colorCount >= 3 ? f.c3b : undefined,
+    measureAvailable: f.avail !== f.measure ? f.avail : undefined,
+    nozzleTempMin:    _o(f.nozzle_min),
+    nozzleTempMax:    _o(f.nozzle_max),
+    dryTemp:          _o(f.dry_temp),
+    dryTime:          _o(f.dry_time),
+    bedTempMin:       _o(f.bed_min),
+    bedTempMax:       _o(f.bed_max),
+    tdRaw:            _o(f.td_raw),
+    customMessage:    _o(f.custom),
   };
   // drop undefined so JSON.stringify gives a clean, copy-pasteable object (keep null: explicit)
   const sdkInputObj  = Object.fromEntries(Object.entries(_sdkInputRaw).filter(([,v]) => v !== undefined));
