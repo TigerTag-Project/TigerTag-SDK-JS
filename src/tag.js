@@ -947,6 +947,24 @@ class TigerTag {
    *
    * @private
    */
+  /**
+   * Returns a parenthetical base-unit hint string for a single value,
+   * e.g. " (= 750 g)" or " (= 500 ml)".
+   * Returns "" when idUnit is already the canonical base unit (g / ml / mm)
+   * or unsupported (no conversion available).
+   * @private
+   */
+  static _toBaseUnitStr(value, idUnit) {
+    const BASE_IDS = new Set([21, 48, 112]); // g, ml, mm are already base
+    if (BASE_IDS.has(idUnit)) return '';
+    const f = TigerTag._baseUnitFields(value, value, idUnit);
+    if (f.measure_gr  !== undefined) return ` (= ${f.measure_gr} g)`;
+    if (f.measure_ml  !== undefined) return ` (= ${f.measure_ml} ml)`;
+    if (f.measure_mm  !== undefined) return ` (= ${f.measure_mm} mm)`;
+    if (f.measure_mm2 !== undefined) return ` (= ${f.measure_mm2} mm²)`;
+    return '';
+  }
+
   static _baseUnitFields(measure, measureAvailable, idUnit) {
     // Weight: mg(10) g(21) kg(35) → grams
     const WEIGHT_TO_G   = { 10: 0.001, 21: 1, 35: 1000 };
@@ -1384,10 +1402,22 @@ class TigerTag {
     }
 
     if (this.measure > 0) {
+      const BASE_UNIT_IDS = new Set([21, 48, 112]); // g, ml, mm — already canonical
+      const bf    = BASE_UNIT_IDS.has(this.idUnit)
+        ? {}
+        : TigerTag._baseUnitFields(this.measure, this.measureAvailable, this.idUnit);
+      const buKey = Object.keys(bf).find(k => k.startsWith('measure_available_'));
+      const buUnit = buKey ? buKey.replace('measure_available_', '') : null;
+      // buUnit is 'gr'→'g', 'ml', 'mm', 'mm2'→'mm²'
+      const buLabel = buUnit ? buUnit.replace('gr', 'g').replace('mm2', 'mm²') : null;
+      const buNote  = buLabel
+        ? ` — ${bf['measure_available_' + buUnit]} ${buLabel} available, `
+          + `${bf['measure_' + buUnit]} ${buLabel} total`
+        : '';
       parts.push(
         `Quantity: ${this.measureAvailable} ${unit} remaining`
         + ` out of ${this.measure} ${unit} initial`
-        + (stock != null ? ` (${stock}%).` : '.'),
+        + (stock != null ? ` (${stock}%${buNote}).` : (buNote ? `${buNote}.` : '.')),
       );
     }
 
@@ -1475,8 +1505,8 @@ class TigerTag {
       + `│  Drying       ${this.dryTemp}°C / ${this.dryTime}h${recNote('dryTemp', 'dryTime', ' h')}\n`
       + `├─ Quantity ────────────────────────────────────────────\n`
       + `│  Unit         ${ul}\n`
-      + `│  Initial      ${this.measure} ${ul}\n`
-      + `│  Available    ${this.measureAvailable} ${ul}`
+      + `│  Initial      ${this.measure} ${ul}${TigerTag._toBaseUnitStr(this.measure, this.idUnit)}\n`
+      + `│  Available    ${this.measureAvailable} ${ul}${TigerTag._toBaseUnitStr(this.measureAvailable, this.idUnit)}`
       + (stock != null ? `  (${stock}% remaining)\n` : '\n')
       + `├─ Traceability ────────────────────────────────────────\n`
       + `│  Manufactured ${this.manufacturingDate.toISOString().replace('T', ' ').slice(0, 16)} UTC\n`

@@ -203,13 +203,21 @@ TigerTag.fromCloudDoc(doc, db?)
 
 tag.toBytes(includeSignature=false)     → Buffer(80 or 144)
 tag.toDict(db?)                         → resolved object (IDs → labels + metadata)
-tag.toRawDict()                         → raw protocol fields
+                                          .measure block always includes canonical base-unit fields:
+                                          measure_gr/measure_available_gr (weight), measure_ml/measure_available_ml
+                                          (volume), measure_mm/measure_available_mm (size),
+                                          measure_mm2/measure_available_mm2 (area).
+                                          Already-canonical units (g/ml/mm) produce no duplicate field.
+tag.toRawDict()                         → raw protocol fields (flat snake_case)
+                                          same base-unit convenience fields as toDict().measure (top-level).
 tag.patch({ ...fields })                → new TigerTag (immutable update, camelCase keys)
 tag.patchFromRawDict(raw)               → new TigerTag (immutable update, snake_case keys from toRawDict())
 tag.validate()                          → string[] warnings
 tag.verify(db?)                         → SignatureResult
 tag.pretty(db?, sigResult?)             → human-readable string
+                                          Quantity section: "1 kg (= 1000 g)" / "0.75 kg (= 750 g)  (75% remaining)"
 tag.describe(db?)                       → LLM-friendly natural language paragraph
+                                          Quantity sentence: "0.75 kg remaining out of 1 kg initial (75% — 750 g available, 1000 g total)"
 
 tag.rawApi(timeout=5000)                → Promise<object|null>
 tag.diffApi(apiData?, db?)              → Promise<ApiDiff[]>

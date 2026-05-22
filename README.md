@@ -261,8 +261,13 @@ capability container) are never part of the user data payload.
 ```js
 // Read
 tag.pretty(db, sigResult)              // → string   human-readable summary
+                                       //            Quantity section shows "(= 750 g)" hint when unit ≠ base
+tag.describe(db)                       // → string   LLM-friendly paragraph
+                                       //            Quantity sentence includes "— 750 g available, 1000 g total"
 tag.toDict(db)                         // → object   JSON-serializable, all labels resolved
+                                       //            .measure includes measure_gr/ml/mm/mm2 + measure_available_*
 tag.toRawDict()                        // → object   raw protocol fields, no resolution
+                                       //            includes measure_gr/ml/mm/mm2 + measure_available_* (base-unit)
 tag.toBytes(includeSignature = false)  // → Buffer   re-serialize to chip bytes
 tag.validate()                         // → string[] sanity check — list of warnings
 tag.verify(db)                         // → SignatureResult

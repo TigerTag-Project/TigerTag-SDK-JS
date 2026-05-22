@@ -12,11 +12,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - **Volume** (ml / cl / L / m³ → millilitres): `measure_ml` + `measure_available_ml`
   - **Size** (mm / cm / m → millimetres): `measure_mm` + `measure_available_mm`
   - **Area** (m² → square millimetres): `measure_mm2` + `measure_available_mm2`
-- `toRawDict()` now includes `measure_gr` / `measure_available_gr` (or `_ml` for liquids)
-  immediately after `measure_available`. Developers can read a single field in grams (or ml)
-  without caring about the unit stored on the chip.
+- `toRawDict()` now includes the convenience fields immediately after `measure_available`.
+  Developers read a single field in grams (or ml/mm/mm²) without caring about `id_unit`.
 - `toDict()` `.measure` block now includes the same convenience fields alongside `initial`,
   `available`, `unit`, and `percent`.
+- `pretty()` Quantity section appends `(= 750 g)` hint on Initial and Available lines when
+  the stored unit is not already the canonical base unit (g / ml / mm).
+- `describe()` Quantity sentence appends `— 750 g available, 1000 g total` when applicable.
 
 ## [1.0.4] — 2026-05-22
 
