@@ -25,6 +25,7 @@ const PROJECT_ROOT = path.join(__dirname, '..');
 const PORT = parseInt(process.argv[2] || '7432', 10);
 
 const { TigerTag, TigerTagDB } = require(path.join(PROJECT_ROOT, 'src', 'index'));
+const PKG = require(path.join(PROJECT_ROOT, 'package.json'));
 
 // Optional: ws for WebSocket support
 let WebSocketServer = null;
@@ -36,8 +37,9 @@ try { ({ NFC } = require('nfc-pcsc')); } catch { /* no NFC reader */ }
 
 // ── WebSocket state ───────────────────────────────────────────────────────────
 
-const wsClients = new Set();
-const readers   = new Map(); // readerName → { id, name, connected, hasCard }
+const wsClients     = new Set();
+const readers       = new Map(); // readerName → { id, name, connected, hasCard }
+const readerObjects = new Map(); // readerName → nfc-pcsc reader (has .write())
 
 function broadcast(msg) {
   if (!wsClients.size) return;
@@ -58,6 +60,7 @@ function initNFC() {
   nfc.on('reader', (reader) => {
     const info = { id: reader.name, name: reader.name, connected: true, hasCard: false };
     readers.set(reader.name, info);
+    readerObjects.set(reader.name, reader);
     broadcast({ type: 'reader:connected', reader: info });
     console.log(`[NFC] Reader connected: ${reader.name}`);
 
@@ -75,6 +78,7 @@ function initNFC() {
         } else {
           uid = Buffer.alloc(7);
         }
+        info.uid = uid.toString('hex').toUpperCase(); // store for burn:result
 
         // Read pages 4–39 (144 bytes: user data + signature)
         // Fall back to 80 bytes if the chip is too small
@@ -89,13 +93,15 @@ function initNFC() {
         const sigRes = tag.verify(db);
 
         broadcast({
-          type:    'card:detected',
-          reader:  { id: reader.name, name: reader.name },
-          uid:     uid.toString('hex').toUpperCase(),
-          payload: payload.toString('hex'),
-          pretty:  tag.pretty(db),
-          verify:  sigRes.toDict(),
-          raw:     tag.toRawDict(),
+          type:     'card:detected',
+          reader:   { id: reader.name, name: reader.name },
+          uid:      uid.toString('hex').toUpperCase(),
+          payload:  payload.toString('hex'),
+          pretty:   tag.pretty(db, sigRes),
+          describe: tag.describe(db),
+          verify:   sigRes.toDict(),
+          raw_dict: tag.toRawDict(),
+          dict:     tag.toDict(db),
         });
 
         console.log(`[NFC] Card on ${reader.name} — UID: ${uid.toString('hex').toUpperCase()}`);
@@ -111,6 +117,7 @@ function initNFC() {
 
     reader.on('card.off', () => {
       info.hasCard = false;
+      info.uid     = null;
       broadcast({ type: 'card:removed', reader: { id: reader.name, name: reader.name } });
       console.log(`[NFC] Card removed from ${reader.name}`);
     });
@@ -121,6 +128,7 @@ function initNFC() {
 
     reader.on('end', () => {
       readers.delete(reader.name);
+      readerObjects.delete(reader.name);
       broadcast({ type: 'reader:disconnected', reader: { id: reader.name, name: reader.name } });
       console.log(`[NFC] Reader disconnected: ${reader.name}`);
     });
@@ -162,6 +170,57 @@ function json(res, code, data) {
     'Access-Control-Allow-Origin': '*',
   });
   res.end(body);
+}
+
+// ── API: /api/parse ───────────────────────────────────────────────────────────
+// Returns all SDK method outputs for a given uid + payload (hex).
+// The playground uses this so the browser never reconstructs SDK data manually.
+
+async function handleParse(req, res) {
+  let body = '';
+  req.on('data', chunk => { body += chunk; });
+  req.on('end', () => {
+    try {
+      const { uid: uidHex, payload: payloadHex } = JSON.parse(body);
+      if (!payloadHex) throw new Error("'payload' field is required");
+
+      const payloadBuf = Buffer.from(payloadHex, 'hex');
+      const uid        = uidHex ? Buffer.from(uidHex, 'hex') : undefined;
+      const db         = new TigerTagDB();
+      const tag        = TigerTag.fromPages(uid, payloadBuf);
+      const sigRes     = tag.verify(db);
+
+      json(res, 200, {
+        pretty:   tag.pretty(db, sigRes),
+        describe: tag.describe(db),
+        verify:   sigRes.toDict(),
+        raw_dict: tag.toRawDict(),
+        dict:     tag.toDict(db),
+      });
+    } catch (e) {
+      json(res, 500, { error: e.message });
+    }
+  });
+}
+
+// ── API: /api/build ───────────────────────────────────────────────────────────
+// Serializes a new tag via TigerTag.create(kwargs).toBytes() and returns the
+// hex payload. The playground uses this so the browser never hand-rolls the
+// chip binary format — the SDK is always the authoritative serializer.
+
+async function handleBuild(req, res) {
+  let body = '';
+  req.on('data', chunk => { body += chunk; });
+  req.on('end', () => {
+    try {
+      const kwargs = JSON.parse(body);
+      const tag    = TigerTag.create(kwargs);
+      const bytes  = tag.toBytes(false);
+      json(res, 200, { payload: bytes.toString('hex') });
+    } catch (e) {
+      json(res, 500, { error: e.message });
+    }
+  });
 }
 
 // ── API: /api/diff ────────────────────────────────────────────────────────────
@@ -232,7 +291,10 @@ function serveFile(req, res) {
 
 const server = http.createServer((req, res) => {
   if (req.method === 'OPTIONS') { cors(res); res.writeHead(200); res.end(); return; }
-  if (req.method === 'POST' && req.url === '/api/diff') { handleDiff(req, res); return; }
+  if (req.method === 'GET'  && req.url === '/api/version') { json(res, 200, { version: PKG.version }); return; }
+  if (req.method === 'POST' && req.url === '/api/parse')   { handleParse(req, res); return; }
+  if (req.method === 'POST' && req.url === '/api/build')   { handleBuild(req, res); return; }
+  if (req.method === 'POST' && req.url === '/api/diff')    { handleDiff(req, res); return; }
   serveFile(req, res);
 });
 
@@ -253,6 +315,86 @@ if (WebSocketServer) {
 
     ws.on('close', () => wsClients.delete(ws));
     ws.on('error', () => wsClients.delete(ws));
+
+    // Handle incoming messages from the playground (burn / raw-read requests)
+    ws.on('message', async (data) => {
+      let msg;
+      try { msg = JSON.parse(data); } catch { return; }
+
+      // ── read:request — read 144 raw bytes from every reader with a card ──────
+      if (msg.type === 'read:request') {
+        const reqId = msg.reqId;
+        for (const [name, info] of readers.entries()) {
+          if (!info.hasCard) continue;
+          const reader = readerObjects.get(name);
+          if (!reader) continue;
+          const cardUid = info.uid || null;
+          try {
+            let payload;
+            try   { payload = await reader.read(4, 144, 4); }
+            catch { payload = await reader.read(4, 80, 4);  }
+            ws.send(JSON.stringify({
+              type: 'read:result', reqId,
+              reader: { id: name, name },
+              uid:     cardUid,
+              payload: payload.toString('hex'),
+              bytes:   payload.length,
+              ok:      true,
+            }));
+            console.log(`[NFC] Read OK on ${name} — UID: ${cardUid} — ${payload.length} bytes`);
+          } catch (err) {
+            ws.send(JSON.stringify({
+              type: 'read:result', reqId,
+              reader: { id: name, name },
+              uid:     cardUid,
+              ok:      false, error: err.message,
+            }));
+            console.error(`[NFC] Read error on ${name}:`, err.message);
+          }
+        }
+        ws.send(JSON.stringify({ type: 'read:done', reqId }));
+        return;
+      }
+
+      if (msg.type !== 'burn:write') return;
+
+      const payloadBuf = Buffer.from(msg.payload, 'hex'); // 80 bytes (pages 4–23)
+      const reqId      = msg.reqId;
+
+      // Write sequentially to every reader that currently has a card
+      for (const [name, info] of readers.entries()) {
+        if (!info.hasCard) continue;
+        const reader = readerObjects.get(name);
+        if (!reader) continue;
+
+        const cardUid = info.uid || null;
+        try {
+          // Write 20 pages × 4 bytes, one page per APDU (NTAG hardware limit)
+          for (let i = 0; i < 20; i++) {
+            const page = payloadBuf.slice(i * 4, i * 4 + 4);
+            await reader.write(4 + i, page, 4);
+          }
+          ws.send(JSON.stringify({
+            type: 'burn:result', reqId,
+            reader: { id: name, name },
+            uid: cardUid,
+            ok: true, pagesWritten: 20,
+          }));
+          console.log(`[NFC] Burn OK on ${name} — UID: ${cardUid} — 20 pages written`);
+        } catch (err) {
+          ws.send(JSON.stringify({
+            type: 'burn:result', reqId,
+            reader: { id: name, name },
+            uid: cardUid,
+            ok: false, error: err.message,
+          }));
+          console.error(`[NFC] Burn error on ${name}:`, err.message);
+        }
+      }
+
+      // Signal that all readers have been processed for this request
+      ws.send(JSON.stringify({ type: 'burn:done', reqId }));
+    });
   });
 }
 

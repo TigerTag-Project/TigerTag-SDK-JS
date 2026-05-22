@@ -76,16 +76,26 @@
 
     /* ── Layout ─────────────────────────────────────────────────────────── */
     main {
-      display: grid; grid-template-columns: 380px 1fr 460px; grid-template-rows: 1fr;
+      display: grid; grid-template-columns: 380px 1fr 400px 460px; grid-template-rows: 1fr;
       overflow: hidden; height: calc(100vh - 48px);
       transition: grid-template-columns .22s ease;
     }
-    main.sdk-closed { grid-template-columns: 380px 1fr 32px; }
+    main.sdk-input-closed                     { grid-template-columns: 380px 1fr 32px 460px; }
+    main.sdk-closed                           { grid-template-columns: 380px 1fr 400px 32px; }
+    main.sdk-input-closed.sdk-closed          { grid-template-columns: 380px 1fr 32px 32px; }
 
     /* ── Sidebar ──────────────────────────────────────────────────────── */
     #sidebar {
       background: var(--card); border-right: 1px solid var(--border);
-      overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 0;
+      overflow: hidden; display: flex; flex-direction: column;
+    }
+    #sidebar-body {
+      flex: 1; min-height: 0; overflow-y: auto; padding: 14px 16px;
+      display: flex; flex-direction: column; gap: 0;
+    }
+    #sidebar-footer {
+      flex-shrink: 0; padding: 10px 16px 14px;
+      border-top: 1px solid var(--border); background: var(--card);
     }
 
     /* ── Version segmented control ──────────────────────────────────────── */
@@ -153,7 +163,7 @@
     .gen-btn {
       width: 100%; padding: 10px; background: var(--accent); color: #fff;
       border: none; border-radius: 7px; font-size: 14px; font-weight: 700;
-      cursor: pointer; margin-top: 14px; transition: background .15s;
+      cursor: pointer; transition: background .15s;
     }
     .gen-btn:hover { background: var(--accent-dark); }
 
@@ -197,6 +207,35 @@
     .card-head-row { display:flex; align-items:center; padding: 10px 14px; border-bottom: 1px solid var(--border); }
     .card-head-row .card-head-title { font-size: 11px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--muted); }
 
+    /* ── SDK left panel (Input) ──────────────────────────────────────────── */
+    #sdk-left {
+      background: var(--card); border-right: 1px solid var(--border);
+      min-height: 0; display: flex; flex-direction: row; overflow: hidden;
+    }
+    #sdk-left-toggle {
+      width: 32px; min-width: 32px; flex-shrink: 0;
+      display: flex; flex-direction: column; align-items: center;
+      padding-top: 12px; gap: 10px; border: none; border-right: 1px solid var(--border);
+      background: var(--card); cursor: pointer; transition: background .12s;
+    }
+    #sdk-left-toggle:hover { background: var(--bg); }
+    #sdk-left-toggle-icon { font-size: 13px; color: var(--muted); transition: transform .22s ease; }
+    main.sdk-input-closed #sdk-left-toggle-icon { transform: rotate(180deg); }
+    #sdk-left-toggle-label {
+      writing-mode: vertical-rl; transform: rotate(180deg);
+      font-size: 9px; font-weight: 700; letter-spacing: 1px;
+      text-transform: uppercase; color: var(--muted); opacity: .5;
+    }
+    #sdk-left-content { flex: 1; min-width: 0; overflow-y: auto; display: flex; flex-direction: column; }
+    #sdk-left-content > * { flex-shrink: 0; }
+    #sdk-left-content .json-block { max-height: none; border-radius: 0; flex-shrink: 0; }
+    #sdk-left-empty {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 8px; padding: 24px; text-align: center; color: var(--muted); font-size: 12px;
+    }
+    #sdk-left-empty .icon { font-size: 40px; opacity: .25; }
+
     /* ── SDK right panel ─────────────────────────────────────────────────── */
     #sdk-right {
       background: var(--card); border-left: 1px solid var(--border);
@@ -217,6 +256,7 @@
       text-transform: uppercase; color: var(--muted); opacity: .5;
     }
     #sdk-content { flex: 1; min-width: 0; overflow-y: auto; display: flex; flex-direction: column; }
+    #sdk-content > * { flex-shrink: 0; }
     #sdk-right-empty {
       flex: 1; display: flex; flex-direction: column;
       align-items: center; justify-content: center;
@@ -266,6 +306,16 @@
     .color-row input[type=color] { width: 40px; height: 34px; padding: 1px 2px; border-radius: 6px; cursor: pointer; }
     .color-row input[type=range] { flex: 1; }
     .alpha-lbl { font-size: 11px; color: var(--muted); min-width: 26px; text-align: right; }
+
+    /* ── Burn button ─────────────────────────────────────────────────────── */
+    .hbtn.burn { background: rgba(239,68,68,.18); border-color: rgba(239,68,68,.4); color: #fca5a5; }
+    .hbtn.burn:hover:not(:disabled) { background: rgba(239,68,68,.3); border-color: rgba(239,68,68,.7); }
+
+    /* ── NFC reader burn-result flash ────────────────────────────────────── */
+    .nfc-reader.burn-ok  { background: rgba(74,222,128,.2) !important; border-color: #4ade80 !important; color: #4ade80 !important; }
+    .nfc-reader.burn-err { background: rgba(239,68,68,.2)  !important; border-color: #ef4444 !important; color: #ef4444 !important; }
+    .nfc-reader.burn-ok  .nfc-dot { background: #4ade80 !important; animation: none !important; }
+    .nfc-reader.burn-err .nfc-dot { background: #ef4444 !important; animation: none !important; }
   </style>
 </head>
 <body>
@@ -281,17 +331,77 @@
         · Playground
       </span>
     </div>
-    <span class="badge">SDK v1.0</span>
+    <span class="badge" id="sdk-version-badge">SDK v…</span>
     <div class="spacer"></div>
     <div id="nfc-bar"></div>
     <button class="hbtn" onclick="document.getElementById('file-in').click()">⬆ Import .bin</button>
     <button class="hbtn accent" id="export-btn" onclick="exportBin()" disabled>⬇ Export .bin</button>
+    <button class="hbtn burn" id="burn-btn" onclick="burnRfid()" disabled title="Write current payload to all connected readers">🔥 Burn</button>
+    <button class="hbtn" id="rawread-btn" onclick="rawRead()" disabled title="Read 144 raw bytes from chip (pages 4–39), page by page">🔬 Raw Read</button>
     <input type="file" id="file-in" accept=".bin" onchange="importBin(event)">
   </header>
+
+  <!-- ── Raw Hex Reader modal ────────────────────────────────────────────── -->
+  <style>
+    #rawread-overlay { display:none;position:fixed;inset:0;z-index:900;background:rgba(0,0,0,.72);backdrop-filter:blur(4px);align-items:center;justify-content:center }
+    #rawread-dialog  { background:var(--card);border:1px solid var(--border);border-radius:14px;width:min(1500px,98vw);height:min(82vh,700px);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.6);font-family:'JetBrains Mono','Fira Code','Cascadia Code','Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,'Courier New',monospace }
+    #rawread-titlebar { display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid var(--border);flex-shrink:0 }
+    #rawread-panels  { display:flex;flex:1;overflow:hidden;min-height:0 }
+
+    /* individual reader panel */
+    .rr-panel        { display:flex;flex-direction:row;flex:1;min-width:0;overflow:hidden;border-right:1px solid var(--border);transition:flex .2s }
+    .rr-panel:last-child { border-right:none }
+    .rr-panel.rr-closed  { flex:0 0 28px }
+    .rr-rail         { flex:0 0 28px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:var(--sidebar-bg);border-right:1px solid var(--border);user-select:none }
+    .rr-rail:hover   { background:rgba(255,255,255,.06) }
+    .rr-rail-label   { writing-mode:vertical-rl;transform:rotate(180deg);font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--muted);white-space:nowrap }
+    .rr-content      { flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden }
+    .rr-panel.rr-closed .rr-content { display:none }
+    .rr-panel-hdr    { display:flex;align-items:center;gap:8px;padding:7px 12px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--card) }
+    .rr-panel-body   { flex:1;overflow:auto;padding:10px 14px }
+
+    /* hex table */
+    .rr-tbl          { border-collapse:collapse;font-size:11.5px;line-height:1.65;width:100%;table-layout:fixed }
+    .rr-tbl th, .rr-tbl td { padding:1px 8px;white-space:nowrap;overflow:hidden }
+    .rr-tbl th       { color:var(--muted);font-weight:400;font-size:10.5px;border-bottom:1px solid var(--border);padding-bottom:4px;text-align:right }
+    .rr-tbl th.rr-th-field { text-align:left }
+    .rr-tbl td       { text-align:right;color:var(--text);font-weight:500 }
+    .rr-tbl td.rr-hex { text-align:left;letter-spacing:.04em }
+    .rr-tbl td.rr-field { text-align:left;color:var(--accent);font-size:10.5px }
+    .rr-tbl td.rr-field .rr-fv { color:var(--text);font-weight:700 }
+    .rr-tbl tr.rr-sig td { color:var(--muted) }
+    .rr-tbl tr.rr-sig td.rr-field { color:var(--muted) }
+    .rr-tbl tr.rr-sig td.rr-field .rr-fv { color:var(--muted) }
+    .rr-tbl tr.rr-sep td { border-top:1px solid var(--border);padding-top:6px;font-size:10px;color:var(--muted) }
+    .rr-col-page  { width:36px }
+    .rr-col-phex  { width:46px }
+    .rr-col-off   { width:52px }
+    .rr-col-b0,.rr-col-b1,.rr-col-b2,.rr-col-b3 { width:28px }
+    .rr-col-hex   { width:96px }
+    .rr-col-dec   { width:104px }
+    .rr-copy-btn  { font-size:10px;font-weight:700;padding:2px 8px;border:1px solid var(--border);border-radius:5px;background:transparent;color:var(--muted);cursor:pointer;transition:color .15s,border-color .15s,background .15s }
+    .rr-copy-btn:hover { color:var(--text) }
+    .rr-copy-btn.copied { color:#16a34a;border-color:#16a34a;background:rgba(22,163,74,.08) }
+    .rr-status    { font-size:11px;color:var(--muted);padding:4px 0 }
+  </style>
+
+  <div id="rawread-overlay" onclick="if(event.target===this)closeRawRead()">
+    <div id="rawread-dialog">
+      <div id="rawread-titlebar">
+        <span style="font-size:12px;font-weight:700;letter-spacing:.04em">🔬 Raw Hex — pages 4–39</span>
+        <div style="flex:1"></div>
+        <button onclick="closeRawRead()" style="font-size:15px;background:transparent;border:none;color:var(--muted);cursor:pointer;padding:2px 6px;line-height:1">✕</button>
+      </div>
+      <div id="rawread-panels">
+        <!-- panels injected by JS: one per reader -->
+      </div>
+    </div>
+  </div>
 
   <main>
     <!-- ── Sidebar ────────────────────────────────────────────────────── -->
     <div id="sidebar">
+      <div id="sidebar-body">
 
       <div id="db-status">Loading databases…</div>
 
@@ -325,7 +435,23 @@
           Reserved for filament brands (eSun, Polymaker, Rosa3D…). Each chip is ECDSA-signed by the manufacturer's private key, guaranteeing origin and authenticity.<br>
           <span style="color:var(--muted)">The cloud product ID unlocks rich metadata and enables <em>remote corrections</em> post-deployment — without recalling a single spool.</span>
         </div>
-        <div class="presets-title">Demo presets</div>
+
+        <!-- ── Load from API ──────────────────────────────────────────────── -->
+        <div class="presets-title">Load from API</div>
+        <div style="display:flex;gap:6px;align-items:stretch;margin-bottom:4px">
+          <input type="number" id="api-product-id" placeholder="Product ID  (ex: 40)" min="1"
+            style="flex:1;min-width:0;font-size:13px"
+            onkeydown="if(event.key==='Enter') fetchAndFillFromApi()">
+          <button id="api-fetch-btn" onclick="fetchAndFillFromApi()"
+            style="padding:0 13px;font-size:12px;font-weight:700;background:var(--accent);color:#fff;border:none;border-radius:7px;cursor:pointer;white-space:nowrap;transition:opacity .15s"
+            onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">
+            Fetch &amp; Fill
+          </button>
+        </div>
+        <div id="api-fetch-status" style="display:none;font-size:11px;font-weight:600;padding:2px 0 6px"></div>
+
+        <!-- ── Demo presets ───────────────────────────────────────────────── -->
+        <div class="presets-title" style="margin-top:10px">Demo presets</div>
         <div class="preset-grid" id="preset-grid"></div>
         <p style="margin-top:12px;font-size:11px;color:var(--muted);line-height:1.6">
           Signed .bin files can be imported via ⬆ Import .bin.<br>
@@ -425,12 +551,11 @@
 
         <div class="sec">Quantity</div>
         <div class="row2">
-          <div class="field"><label>Initial qty</label><input type="number" id="f-measure" value="1000" min="0"></div>
+          <div class="field"><label>Initial qty</label><input type="number" id="f-measure" value="1000" min="0" oninput="onMeasureInput()"></div>
           <div class="field"><label>Unit</label><select id="f-unit"></select></div>
         </div>
-        <div class="field"><label>Available (0 = same as initial)</label><input type="number" id="f-avail" value="0" min="0"></div>
-        <div class="field" style="margin-top:14px"><label>Manufacturing date</label><input type="date" id="f-date" value="2024-06-15"></div>
-        <button class="gen-btn" onclick="generate()">▶ Generate &amp; Preview</button>
+        <div class="field"><label>Available</label><input type="number" id="f-avail" value="1000" min="0" oninput="onAvailInput()"></div>
+
       </div><!-- /mode-standard -->
 
       <!-- ── Ecosystem ──────────────────────────────────────────────────── -->
@@ -465,6 +590,10 @@
         </div>
       </div>
 
+      </div><!-- /sidebar-body -->
+      <div id="sidebar-footer">
+        <button class="gen-btn" onclick="generate()">▶ Generate &amp; Preview</button>
+      </div>
     </div><!-- /sidebar -->
 
     <!-- ── Output ──────────────────────────────────────────────────────── -->
@@ -475,11 +604,25 @@
       </div>
     </div>
 
-    <!-- ── SDK right panel ────────────────────────────────────────────── -->
+    <!-- ── SDK Input panel ──────────────────────────────────────────────── -->
+    <div id="sdk-left">
+      <button id="sdk-left-toggle" onclick="toggleSdkInputPanel()" title="Toggle SDK Input panel">
+        <span id="sdk-left-toggle-icon">‹</span>
+        <span id="sdk-left-toggle-label">SDK Input</span>
+      </button>
+      <div id="sdk-left-content">
+        <div id="sdk-left-empty">
+          <div class="icon">⌥</div>
+          <p>Generate a tag to see<br>SDK input here.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SDK Output panel ──────────────────────────────────────────────── -->
     <div id="sdk-right">
-      <button id="sdk-toggle" onclick="toggleSdkPanel()" title="Toggle SDK panel">
+      <button id="sdk-toggle" onclick="toggleSdkPanel()" title="Toggle SDK Output panel">
         <span id="sdk-toggle-icon">‹</span>
-        <span id="sdk-toggle-label">SDK</span>
+        <span id="sdk-toggle-label">SDK Output</span>
       </button>
       <div id="sdk-content">
         <div id="sdk-right-empty">
@@ -534,8 +677,122 @@ async function loadDB() {
     `${DB.materials.length} materials · ${DB.brands.length} brands loaded`;
 }
 
-function byId(table, id) { return DB[table].find(e => e.id === +id) || null; }
-function lbl(e)          { if (!e) return 'Unknown'; return e.label || e.name || 'Unknown'; }
+function byId(table, id)      { return DB[table].find(e => e.id === +id) || null; }
+function lbl(e)               { if (!e) return 'Unknown'; return e.label || e.name || 'Unknown'; }
+function byLabel(table, label) {
+  if (!label) return null;
+  const l = String(label).toLowerCase().trim();
+  return DB[table]?.find(e => (e.label || e.name || '').toLowerCase() === l) || null;
+}
+
+// Parse #RRGGBBAA or #RRGGBB → { r, g, b, a }
+function parseApiHex(hex) {
+  if (!hex || !hex.startsWith('#')) return { r:0, g:0, b:0, a:255 };
+  const h = hex.slice(1);
+  return {
+    r: parseInt(h.slice(0,2), 16) || 0,
+    g: parseInt(h.slice(2,4), 16) || 0,
+    b: parseInt(h.slice(4,6), 16) || 0,
+    a: h.length >= 8 ? parseInt(h.slice(6,8), 16) : 255,
+  };
+}
+
+async function fetchAndFillFromApi() {
+  const productId = +document.getElementById('api-product-id').value;
+  const status    = document.getElementById('api-fetch-status');
+  const btn       = document.getElementById('api-fetch-btn');
+  if (!productId || productId <= 0) {
+    status.style.display = 'block'; status.style.color = 'var(--err)';
+    status.textContent = '⚠ Enter a valid Product ID';
+    return;
+  }
+
+  // Loading state
+  status.style.display = 'block'; status.style.color = 'var(--muted)';
+  status.textContent = 'Fetching from api.tigertag.io…';
+  btn.disabled = true; btn.style.opacity = '.5';
+
+  const data = await fetchProductMeta(productId);
+  btn.disabled = false; btn.style.opacity = '1';
+
+  if (!data || data._error) {
+    status.style.color = 'var(--err)';
+    status.textContent = '⚠ ' + (data?._error || 'No data returned');
+    return;
+  }
+
+  // Switch to TigerTag+ mode
+  _currentVersion = ID_TIGERTAG_PLUS;
+  document.querySelectorAll('.seg-btn').forEach(b =>
+    b.classList.toggle('active', (+b.dataset.val >>> 0) === ID_TIGERTAG_PLUS)
+  );
+  document.getElementById('mode-plus').style.display     = 'block';
+  document.getElementById('mode-standard').style.display = 'none';
+  document.getElementById('mode-init').style.display     = 'none';
+
+  // Product ID
+  document.getElementById('f-product-id').value = productId;
+
+  const fil = data.filament || {};
+
+  // Brand
+  const brandE = byLabel('brands', data.brand);
+  if (brandE) setSelectVal('f-brand', brandE.id);
+
+  // Material
+  const matE = byLabel('materials', fil.material);
+  if (matE) setSelectVal('f-material', matE.id);
+
+  // Type: "Filament" → 142, "Resin" → 173
+  const typeE = byLabel('types', data.product_type);
+  if (typeE) setSelectVal('f-type', typeE.id);
+
+  // Diameter (API gives a string like "1.75")
+  const diamE = byLabel('diameters', fil.diameter);
+  if (diamE) setSelectVal('f-diameter', diamE.id);
+
+  // Aspects
+  const asp1E = byLabel('aspects', fil.aspect1);
+  const asp2E = byLabel('aspects', fil.aspect2);
+  repopulateAspects(asp1E?.id ?? 0, asp2E?.id ?? 0);
+
+  // Colors — API format: #RRGGBBAA
+  const colors = fil.color_info?.colors || (fil.color ? [fil.color] : []);
+  const toHex6 = ({r,g,b}) => '#' + [r,g,b].map(v => v.toString(16).padStart(2,'0')).join('');
+  if (colors[0]) {
+    const c = parseApiHex(colors[0]);
+    document.getElementById('f-color1').value = toHex6(c);
+    document.getElementById('f-alpha1').value = c.a;
+    document.getElementById('alpha1-val').textContent = c.a;
+  }
+  if (colors[1]) document.getElementById('f-color2').value = toHex6(parseApiHex(colors[1]));
+  if (colors[2]) document.getElementById('f-color3').value = toHex6(parseApiHex(colors[2]));
+
+  // Measure + unit (API: measure_value=1 + measure_unit="kg" → chip stores 1 kg)
+  const unitE = byLabel('units', fil.measure_unit);
+  if (unitE) setSelectVal('f-unit', unitE.id);
+  _setAvail(fil.measure_value ?? fil.grams ?? 0, null); // full spool — link restored
+
+  // Print settings
+  document.getElementById('f-nozzle-min').value = data.nozzle?.temp_min ?? 0;
+  document.getElementById('f-nozzle-max').value = data.nozzle?.temp_max ?? 0;
+  document.getElementById('f-bed-min').value    = data.bed?.temp_min    ?? 0;
+  document.getElementById('f-bed-max').value    = data.bed?.temp_max    ?? 0;
+  document.getElementById('f-dry-temp').value   = data.dryer?.temp      ?? 0;
+  document.getElementById('f-dry-time').value   = data.dryer?.time      ?? 0;
+
+  // HueForge TD (API: transmission_dist in mm, chip stores ×10 as integer)
+  const td = fil.transmission_dist;
+  document.getElementById('f-td').value = td != null ? td : 0;
+
+  updateColorGroups();
+  renderColorPreview();
+
+  status.style.color = 'var(--ok)';
+  status.textContent = `✓ ${data.title || 'Product #' + productId}`;
+
+  await generate();
+}
 
 // ── Dropdowns ─────────────────────────────────────────────────────────────────
 
@@ -572,6 +829,33 @@ function setSelectVal(id, val) {
 
 let _currentVersion = ID_TIGERTAG;
 let _lastPayload    = null;
+let _ws             = null;  // exposed WS handle for burnRfid()
+let _burnPending    = 0;     // burn:result messages still expected
+let _burnOkCount    = 0;     // successful writes in current burn
+let _burnTotal      = 0;     // total readers targeted in current burn
+let _burnUids       = [];    // { uid, ok, reader } per burn:result received
+
+// Available qty linking — true: f-avail mirrors f-measure automatically
+let _availLinked    = true;
+
+function onMeasureInput() {
+  if (_availLinked) {
+    document.getElementById('f-avail').value = document.getElementById('f-measure').value;
+  }
+}
+
+function onAvailInput() {
+  // User manually edited Available → break the link
+  _availLinked = false;
+}
+
+function _setAvail(measure, avail) {
+  // Helper: set both fields and manage the link state
+  // avail === null means "same as measure" (full spool)
+  _availLinked = (avail == null || avail === measure);
+  document.getElementById('f-measure').value = measure;
+  document.getElementById('f-avail').value   = _availLinked ? measure : avail;
+}
 
 function selectVersion(v) {
   v = v >>> 0;
@@ -590,10 +874,12 @@ function selectVersion(v) {
     showPlaceholder('Select one of the 6 TigerTag+ presets to generate a preview.');
     _lastPayload = null;
     document.getElementById('export-btn').disabled = true;
+    updateBurnBtn();
   } else {
     showPlaceholder('Fill in the form and click <strong>Generate &amp; Preview</strong>,<br>or <strong>Import a .bin</strong> to parse an existing file.');
     _lastPayload = null;
     document.getElementById('export-btn').disabled = true;
+    updateBurnBtn();
   }
 }
 
@@ -602,10 +888,16 @@ function showPlaceholder(msg) {
     `<div id="placeholder"><div class="icon">◈</div><p>${msg}</p></div>`;
   document.getElementById('sdk-content').innerHTML =
     `<div id="sdk-right-empty"><div class="icon">⌥</div><p>Parse a tag to see<br>SDK output here.</p></div>`;
+  document.getElementById('sdk-left-content').innerHTML =
+    `<div id="sdk-left-empty"><div class="icon">⌥</div><p>Generate a tag to see<br>SDK input here.</p></div>`;
 }
 
 function toggleSdkPanel() {
   document.querySelector('main').classList.toggle('sdk-closed');
+}
+
+function toggleSdkInputPanel() {
+  document.querySelector('main').classList.toggle('sdk-input-closed');
 }
 
 function generateInit() {
@@ -621,6 +913,7 @@ function generateInit() {
   };
   _lastPayload = buildPayload(f);
   document.getElementById('export-btn').disabled = false;
+  updateBurnBtn();
   renderOutput(f, _lastPayload);
 }
 
@@ -687,11 +980,9 @@ function applyPreset(idx) {
   document.getElementById('f-bed-max').value    = p.bedMax;
   document.getElementById('f-dry-temp').value   = p.dryTemp;
   document.getElementById('f-dry-time').value   = p.dryTime;
-  document.getElementById('f-measure').value    = p.weight;
   setSelectVal('f-unit', p.unitId);
-  document.getElementById('f-avail').value = 0;
+  _setAvail(p.weight, null); // full spool — link restored
   document.getElementById('f-msg').value   = '';
-  document.getElementById('f-date').value  = '2024-06-15';
   generate();
 }
 
@@ -854,7 +1145,10 @@ function parseBuffer(buf) {
   f.c2r=r8(); f.c2g=r8(); f.c2b=r8(); r8();
   f.c3r=r8(); f.c3g=r8(); f.c3b=r8(); r8();
   f.td_raw=r16(); r16();
-  f.custom = new TextDecoder().decode(data.slice(p,p+28)).replace(/\0.*$/,''); p+=28;
+  const _rawMsg = new TextDecoder().decode(data.slice(p,p+28)).replace(/\0.*$/,'');
+  // Discard binary garbage: clear if any replacement char (invalid UTF-8) or control char present
+  f.custom = /[\x00-\x1F\x7F\uFFFD]/.test(_rawMsg) ? '' : _rawMsg;
+  p+=28;
   f.avail=r24(); r8();
   if (data.length >= 144) {
     const sr=data.slice(80,112), ss=data.slice(112,144);
@@ -928,8 +1222,7 @@ function readForm() {
   const [c1r,c1g,c1b] = hexToRgb(document.getElementById('f-color1').value);
   const [c2r,c2g,c2b] = hexToRgb(document.getElementById('f-color2').value);
   const [c3r,c3g,c3b] = hexToRgb(document.getElementById('f-color3').value);
-  const dateStr = document.getElementById('f-date').value;
-  const ts = dateStr ? Math.floor(new Date(dateStr+'T00:00:00Z').getTime()/1000 - EPOCH_OFFSET) : 0;
+  // timestamp is always null — the SDK sets its own write-time timestamp
   return {
     id_tigertag: v, id_product,
     id_material: +document.getElementById('f-material').value,
@@ -948,7 +1241,7 @@ function readForm() {
     dry_time:   +document.getElementById('f-dry-time').value,
     bed_min:    +document.getElementById('f-bed-min').value,
     bed_max:    +document.getElementById('f-bed-max').value,
-    timestamp:  ts >>> 0,
+    timestamp:  null,
     td_raw:     Math.round(+document.getElementById('f-td').value * 10),
     custom:     document.getElementById('f-msg').value,
     avail:      +document.getElementById('f-avail').value,
@@ -961,21 +1254,86 @@ function readForm() {
 
 async function generate() {
   const f = readForm();
-  const payload = buildPayload(f);
+
+  // The SDK (tools/server.js → TigerTag.create(kwargs).toBytes()) is the ONLY
+  // source of truth for the chip payload.  The browser never computes the binary
+  // format — it is purely a UI that forwards kwargs to the SDK and displays results.
+  const createKwargs = {
+    productId:        f.id_product >>> 0,
+    idMaterial:       f.id_material,
+    idAspect1:        f.id_aspect1,
+    idAspect2:        f.id_aspect2,
+    idType:           f.id_type,
+    idDiameter:       f.id_diameter,
+    idBrand:          f.id_brand,
+    color1R: f.c1r, color1G: f.c1g, color1B: f.c1b, color1A: f.c1a,
+    color2R: f.c2r, color2G: f.c2g, color2B: f.c2b,
+    color3R: f.c3r, color3G: f.c3g, color3B: f.c3b,
+    measure:          f.measure,
+    measureAvailable: f.avail,
+    idUnit:           f.id_unit,
+    nozzleTempMin:    f.nozzle_min,
+    nozzleTempMax:    f.nozzle_max,
+    dryTemp:          f.dry_temp,
+    dryTime:          f.dry_time,
+    bedTempMin:       f.bed_min,
+    bedTempMax:       f.bed_max,
+    tdRaw:            f.td_raw || 0,
+    customMessage:    f.custom || '',
+    timestamp:        f.timestamp,
+  };
+
+  let payload = null;
+  try {
+    const r   = await fetch('/api/build', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(createKwargs),
+    });
+    const out = await r.json();
+    if (out.payload) {
+      payload = new Uint8Array(out.payload.match(/.{2}/g).map(h => parseInt(h, 16)));
+    } else {
+      throw new Error(out.error || 'empty payload');
+    }
+  } catch (err) {
+    // SDK server is required — without it we cannot generate or burn a chip
+    const out = document.getElementById('output');
+    out.innerHTML = `<div class="card" style="border-left:3px solid var(--err);padding:16px;color:var(--err)">
+      <strong>SDK server required</strong><br>
+      <code style="font-size:12px">node tools/server.js</code> must be running.<br>
+      <small style="color:var(--muted)">${err.message}</small>
+    </div>`;
+    _lastPayload = null;
+    updateBurnBtn();
+    return;
+  }
+
   _lastPayload  = payload;
   document.getElementById('export-btn').disabled = false;
+  updateBurnBtn();
   await renderOutput(f, payload);
 }
 
 async function renderOutput(f, payload) {
-  const out        = document.getElementById('output');
-  const sdkContent = document.getElementById('sdk-content');
+  const out          = document.getElementById('output');
+  const sdkContent   = document.getElementById('sdk-content');
+  const sdkLeftEl    = document.getElementById('sdk-left-content');
   out.innerHTML        = '';
   sdkContent.innerHTML = '';
+  sdkLeftEl.innerHTML  = '';
   document.querySelector('main').classList.remove('sdk-closed');
+  document.querySelector('main').classList.add('sdk-input-closed');
 
-  const sigResult = await verifySig(f);
-
+  const payloadHex = Array.from(payload).map(b => b.toString(16).padStart(2,'0')).join('');
+  const [sigResult, sdkOut] = await Promise.all([
+    verifySig(f),
+    fetch('/api/parse', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ uid: f.uid || null, payload: payloadHex }),
+    }).then(r => r.json()).catch(() => null),
+  ]);
   const matE  = byId('materials', f.id_material);
   const brandE= byId('brands',    f.id_brand);
   const typeE = byId('types',     f.id_type);
@@ -1127,73 +1485,25 @@ async function renderOutput(f, payload) {
     });
   }
 
-  // pretty() lines
-  const PW = 52;
-  const phdr = s  => `┌─ ${s} ${'─'.repeat(Math.max(0,PW-s.length-3))}`;
-  const psep = s  => `├─ ${s} ${'─'.repeat(Math.max(0,PW-s.length-3))}`;
-  const pfot = () => `└${'─'.repeat(PW)}`;
-  const prow = (k,v) => `│  ${k.padEnd(14)}${v}`;
+  // ── SDK Output data — from /api/parse (real server-side SDK) ────────────────
+  const SIG_CLS   = { valid:'valid', invalid:'invalid', unsigned:'unsigned' };
+  const SIG_ICONS = {
+    valid:    '✅ VALID',    invalid:   '❌ INVALID',  unsigned:  '⬜ NOT SIGNED',
+    no_uid:   '⚠ UID unavailable', no_key: '⚠ No public key', no_crypto: '⚠ crypto unavailable',
+  };
+  const sv      = sdkOut?.verify || {};
+  const svCls   = SIG_CLS[sv.status] || 'no_uid';
+  const svLabel = (SIG_ICONS[sv.status] || sigResult.label) + (sv.detail ? ` — ${sv.detail}` : '');
 
-  const prettyLines = [
-    phdr(verLabel),
-    prow('Version',    `${verLabel} (0x${f.id_tigertag.toString(16).toUpperCase().padStart(8,'0')})`),
-    prow('Product',    isMaker?'TigerTag Maker':isInit?'TigerTag Init':`TigerTag+ · cloud ID ${f.id_product}`),
-    prow('UID',        f.uid||'— (partial dump)'),
-    ...(productPageUrl?[prow('Product page',productPageUrl),prow('API JSON',apiUrl)]:[]),
-    psep('Material'),
-    prow('Material',   `${lbl(matE)}  (id=${f.id_material})`),
-    ...(matE?.density?[prow('Density',`${matE.density} g/cm³`)]:[]),
-    prow('Type',       lbl(typeE)),
-    prow('Diameter',   diamE?`${diamE.label} mm`:'—'),
-    prow('Brand',      lbl(brandE)),
-    prow('Aspect 1',   lbl(asp1E)),
-    prow('Aspect 2',   lbl(asp2E)),
-    psep('Colors'),
-    prow('Color 1',    `${c1hex}  α=${f.c1a}`),
-    ...(colorCount>=2?[prow('Color 2',c2hex)]:[]),
-    ...(colorCount>=3?[prow('Color 3',c3hex)]:[]),
-    ...(f.td_raw>0?[prow('HueForge TD',tdDisp)]:[]),
-    psep('Temperatures'),
-    prow('Nozzle',     `${f.nozzle_min}°C → ${f.nozzle_max}°C`),
-    prow('Bed',        `${f.bed_min}°C → ${f.bed_max}°C`),
-    prow('Drying',     `${f.dry_temp}°C / ${f.dry_time}h`),
-    psep('Quantity'),
-    prow('Unit',       lbl(unitE)),
-    prow('Initial',    `${f.measure} ${lbl(unitE)}`),
-    prow('Available',  `${availDisp} ${lbl(unitE)}  (${stockPct} remaining)`),
-    psep('Traceability'),
-    prow('Manufactured', mfgDate),
-    ...(f.custom?[prow('Message',`'${f.custom}'`)]:[]),
-    psep('Signature'),
-    prow('ECDSA',      sigResult.label),
-    pfot(),
-  ];
+  const prettyText  = sdkOut?.pretty              || '(server unavailable — is tools/server.js running?)';
+  const descText    = sdkOut?.describe            || '(server unavailable — is tools/server.js running?)';
+  const verifyJson  = sdkOut?.verify   != null    ? JSON.stringify(sdkOut.verify,   null, 2) : '{}';
+  const rawDictJson = sdkOut?.raw_dict != null    ? JSON.stringify(sdkOut.raw_dict, null, 2) : '{}';
+  const dictJson    = sdkOut?.dict     != null    ? JSON.stringify(sdkOut.dict,     null, 2) : '{}';
 
-  // describe()
-  const finishParts = [lbl(asp1E),lbl(asp2E)].filter(l=>l&&!['None','Unknown','-'].includes(l));
-  const finishStr   = finishParts.join(' + ')||null;
-  const colorDesc   = [`primary ${c1hex}`];
-  if (colorCount>=2) colorDesc.push(`secondary ${c2hex}`);
-  if (colorCount>=3) colorDesc.push(`tertiary ${c3hex}`);
-  const descText = `${verLabel} RFID chip. `
-    +`Material: ${lbl(matE)} ${lbl(typeE)}${diamE?' ('+diamE.label+'mm),':','} `
-    +(matE?.density?`density ${matE.density} g/cm³, `:'')
-    +`by ${lbl(brandE)}. `
-    +(finishStr?`Finish: ${finishStr}. `:'')
-    +`Color: ${colorDesc.join(', ')}. `
-    +`Print settings: nozzle ${f.nozzle_min}–${f.nozzle_max}°C, bed ${f.bed_min}–${f.bed_max}°C, drying ${f.dry_temp}°C for ${f.dry_time}h. `
-    +`Quantity: ${availDisp} ${lbl(unitE)} remaining out of ${f.measure} (${stockPct}). `
-    +(f.td_raw>0?`HueForge TD: ${tdDisp}. `:'')
-    +`Manufactured: ${mfgDate}. `
-    +(f.custom?`Message: "${f.custom}". `:'')
-    +(f.uid?`UID: ${f.uid}. `:'')
-    +(productPageUrl?`Product page: ${productPageUrl} — API JSON: ${apiUrl} `:'')
-    +`Signature: ${sigResult.status}.`;
-
-  // Raw dict (mirrors toRawDict())
-  const rawData = {
-    idTigertag:       f.id_tigertag>>>0,
-    idProduct:        f.id_product>>>0,
+  // SDK Input — exact kwargs for TigerTag.create()
+  const _sdkInputRaw = {
+    productId:        f.id_product >>> 0,
     idMaterial:       f.id_material,
     idAspect1:        f.id_aspect1,
     idAspect2:        f.id_aspect2,
@@ -1201,7 +1511,10 @@ async function renderOutput(f, payload) {
     idDiameter:       f.id_diameter,
     idBrand:          f.id_brand,
     color1R:f.c1r, color1G:f.c1g, color1B:f.c1b, color1A:f.c1a,
+    color2R:f.c2r, color2G:f.c2g, color2B:f.c2b,
+    color3R:f.c3r, color3G:f.c3g, color3B:f.c3b,
     measure:          f.measure,
+    measureAvailable: f.avail,
     idUnit:           f.id_unit,
     nozzleTempMin:    f.nozzle_min,
     nozzleTempMax:    f.nozzle_max,
@@ -1209,33 +1522,30 @@ async function renderOutput(f, payload) {
     dryTime:          f.dry_time,
     bedTempMin:       f.bed_min,
     bedTempMax:       f.bed_max,
-    timestamp:        f.timestamp,
-    color2R:f.c2r, color2G:f.c2g, color2B:f.c2b,
-    color3R:f.c3r, color3G:f.c3g, color3B:f.c3b,
-    tdRaw:            f.td_raw,
-    customMessage:    f.custom||'',
-    measureAvailable: f.avail>0?f.avail:f.measure,
-    uid:              f.uid||null,
-    productPageUrl:   productPageUrl,
-    apiUrl:           apiUrl,
+    tdRaw:            f.td_raw   || undefined,
+    customMessage:    f.custom   || undefined,
+    timestamp:        null,   // SDK sets its own write-time timestamp
   };
+  // drop undefined so JSON.stringify gives a clean, copy-pasteable object (keep null: explicit)
+  const sdkInputObj  = Object.fromEntries(Object.entries(_sdkInputRaw).filter(([,v]) => v !== undefined));
+  const sdkInputText = `const tag = TigerTag.create(${JSON.stringify(sdkInputObj, null, 2)});`;
 
-  // Resolved dict (mirrors toDict())
-  const sdkData = {
-    protocol:     { version:verLabel, idTigertag:'0x'+f.id_tigertag.toString(16).toUpperCase().padStart(8,'0'), product:isMaker?'Maker':isInit?'Init':`TigerTag+ cloud_id=${f.id_product}`, productPageUrl, apiUrl },
-    material:     { id:f.id_material, label:lbl(matE), density:matE?.density||null },
-    brand:        { id:f.id_brand,    label:lbl(brandE) },
-    type:         { id:f.id_type,     label:lbl(typeE) },
-    diameter:     { id:f.id_diameter, label:diamE?.label||null },
-    aspect1:      { id:f.id_aspect1,  label:lbl(asp1E), colorCount:asp1E?.color_count||1 },
-    aspect2:      { id:f.id_aspect2,  label:lbl(asp2E), colorCount:asp2E?.color_count||1 },
-    colors:       { primary:{hex:c1hex,alpha:f.c1a}, secondary:colorCount>=2?{hex:c2hex}:null, tertiary:colorCount>=3?{hex:c3hex}:null, activeCount:colorCount },
-    temperatures: { onChip:{ nozzle:{min:f.nozzle_min,max:f.nozzle_max}, bed:{min:f.bed_min,max:f.bed_max}, drying:{temp:f.dry_temp,timeH:f.dry_time} } },
-    measure:      { initial:f.measure, available:availDisp, unit:lbl(unitE), stockPct:parseFloat(stockPct) },
-    hueforgeТD:   f.td_raw>0?f.td_raw/10:null,
-    traceability: { manufacturingDate:mfgDate, customMessage:f.custom||null, uid:f.uid||null },
-    authentication: { signed:!!f.sig_r, status:sigResult.status },
-  };
+  // ── SDK left panel (Input) ────────────────────────────────────────────────
+  sdkLeftEl.innerHTML = `
+    <div style="position:sticky;top:0;z-index:2;background:var(--card)">
+      <div class="sdk-panel-header">
+        <span>SDK Input</span>
+        <button class="sdk-copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('sdk-left-create').textContent).then(()=>{this.textContent='✓ Copied';this.style.color='var(--ok)';setTimeout(()=>{this.textContent='Copy';this.style.color=''},1500)})">Copy</button>
+      </div>
+      <div id="sdk-left-burn-uids" style="display:none;padding:6px 14px 8px;font-size:11px;font-family:monospace;font-weight:600;color:var(--text);border-top:1px solid var(--border);letter-spacing:.03em"></div>
+    </div>
+    <pre id="sdk-left-create" class="json-block">${esc(sdkInputText)}</pre>
+    <div id="sdk-left-returns-wrap" style="display:none">
+      <div style="padding:7px 14px 5px;border-top:1px solid var(--border);background:var(--card)">
+        <span style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.04em">→ Burn result</span>
+      </div>
+      <pre id="sdk-left-returns" class="json-block"></pre>
+    </div>`;
 
   // SDK right panel
   const sdkWrap = document.createElement('div');
@@ -1255,16 +1565,16 @@ async function renderOutput(f, payload) {
         ${isPlus?`<button class="sdk-tab" id="sdktab-diff"   onclick="switchSdkTab('diff')">☁ diffApi()</button>`:'' }
       </div>
     </div>
-    <div id="sdkpanel-pretty"   style="display:block"><pre class="json-block">${esc(prettyLines.join('\n'))}</pre></div>
+    <div id="sdkpanel-pretty"   style="display:block"><pre class="json-block">${esc(prettyText)}</pre></div>
     <div id="sdkpanel-describe" style="display:none"><div class="card-body"><p style="font-size:13px;line-height:1.7;color:var(--text)">${esc(descText)}</p></div></div>
     <div id="sdkpanel-verify"   style="display:none">
       <div class="card-body" style="display:flex;flex-direction:column;gap:12px">
-        <span class="sig-badge ${sigResult.cls}">${sigResult.label}</span>
-        <pre class="json-block" style="border-radius:8px">${esc(JSON.stringify({status:sigResult.status,signed:!!f.sig_r,uid:f.uid||null,idTigertag:'0x'+f.id_tigertag.toString(16).toUpperCase().padStart(8,'0')},null,2))}</pre>
+        <span class="sig-badge ${svCls}">${svLabel}</span>
+        <pre class="json-block" style="border-radius:8px">${esc(verifyJson)}</pre>
       </div>
     </div>
-    <div id="sdkpanel-raw"  style="display:none"><pre class="json-block">${esc(JSON.stringify(rawData,null,2))}</pre></div>
-    <div id="sdkpanel-dict" style="display:none"><pre class="json-block">${esc(JSON.stringify(sdkData,null,2))}</pre></div>
+    <div id="sdkpanel-raw"  style="display:none"><pre class="json-block">${esc(rawDictJson)}</pre></div>
+    <div id="sdkpanel-dict" style="display:none"><pre class="json-block">${esc(dictJson)}</pre></div>
     ${isPlus?`<div id="sdkpanel-rawapi" style="display:none"><pre class="json-block" style="color:var(--muted);font-style:italic">Fetching from api.tigertag.io…</pre></div>`:''}
     ${isPlus?`<div id="sdkpanel-diff" style="display:none"><div class="card-body" id="diffpanel-body" style="font-size:13px;color:var(--muted);font-style:italic">Fetching from api.tigertag.io…</div></div>`:''}`;
   sdkContent.appendChild(sdkWrap);
@@ -1313,7 +1623,7 @@ function switchSdkTab(tab) {
 }
 
 function copySdkTab() {
-  const active = ['pretty','describe','verify','raw','dict','rawapi','diff'].find(t=>
+  const active = ['input','pretty','describe','verify','raw','dict','rawapi','diff'].find(t=>
     document.getElementById(`sdkpanel-${t}`)?.style.display !== 'none'
   );
   if (!active) return;
@@ -1350,6 +1660,7 @@ function importBin(evt) {
     const f = parseBuffer(e.target.result);
     _lastPayload = new Uint8Array(e.target.result);
     document.getElementById('export-btn').disabled = false;
+    updateBurnBtn();
 
     _currentVersion = f.id_tigertag>>>0;
     document.querySelectorAll('.seg-btn').forEach(b =>
@@ -1377,20 +1688,256 @@ function importBin(evt) {
     document.getElementById('f-bed-max').value    = f.bed_max;
     document.getElementById('f-dry-temp').value   = f.dry_temp;
     document.getElementById('f-dry-time').value   = f.dry_time;
-    document.getElementById('f-measure').value    = f.measure;
     setSelectVal('f-unit', f.id_unit);
-    document.getElementById('f-avail').value = f.avail!==f.measure?f.avail:0;
+    _setAvail(f.measure, f.avail !== f.measure ? f.avail : null);
     document.getElementById('f-msg').value   = f.custom;
     if (f.uid) document.getElementById('f-uid').value = f.uid;
-    document.getElementById('f-date').value =
-      new Date((EPOCH_OFFSET+f.timestamp)*1000).toISOString().split('T')[0];
-
     updateColorGroups();
     renderColorPreview();
     await renderOutput(f, _lastPayload);
     evt.target.value = '';
   };
   reader.readAsArrayBuffer(file);
+}
+
+// ── Burn (write payload to NFC chip via WebSocket → server) ───────────────────
+
+function updateBurnBtn() {
+  const btn  = document.getElementById('burn-btn');
+  const rBtn = document.getElementById('rawread-btn');
+  if (!btn) return;
+  const hasCard = [..._readerState.values()].some(r => r.hasCard);
+  const wsOk    = _ws !== null && _ws.readyState === 1 /* OPEN */;
+  btn.disabled  = !(_lastPayload && hasCard && wsOk);
+  if (rBtn) rBtn.disabled = !(hasCard && wsOk);
+}
+
+// ── Raw Hex Reader ─────────────────────────────────────────────────────────────
+
+// Memory layout labels (page 4 = offset 0 in payload)
+// ── Raw Hex Reader ─────────────────────────────────────────────────────────────
+
+// Signature pages have static labels (no value annotation — raw bytes only)
+const _SIG_LABELS = {
+  24: 'signatureR [0–3]',   25: 'signatureR [4–7]',
+  26: 'signatureR [8–11]',  27: 'signatureR [12–15]',
+  28: 'signatureR [16–19]', 29: 'signatureR [20–23]',
+  30: 'signatureR [24–27]', 31: 'signatureR [28–31]',
+  32: 'signatureS [0–3]',   33: 'signatureS [4–7]',
+  34: 'signatureS [8–11]',  35: 'signatureS [12–15]',
+  36: 'signatureS [16–19]', 37: 'signatureS [20–23]',
+  38: 'signatureS [24–27]', 39: 'signatureS [28–31]',
+};
+
+// Wrap a value in an annotated span: (255)
+function _fv(v) { return `<span class="rr-fv">(${v})</span>`; }
+
+// Build the annotated Field label "(value) name · (value) name …" from raw bytes
+function _buildFieldLabel(page, chunk) {
+  const [b0, b1, b2, b3] = chunk;
+  const dot = ' · ';
+  switch (page) {
+    case 4:  return `${_fv((b0<<24|b1<<16|b2<<8|b3)>>>0)} id_tigertag`;
+    case 5:  return `${_fv((b0<<24|b1<<16|b2<<8|b3)>>>0)} id_product`;
+    case 6:  return `${_fv(b0<<8|b1)} id_material${dot}${_fv(b2)} aspect1${dot}${_fv(b3)} aspect2`;
+    case 7:  return `${_fv(b0)} type${dot}${_fv(b1)} diameter${dot}${_fv(b2<<8|b3)} id_brand`;
+    case 8:  return `${_fv(b0)} R${dot}${_fv(b1)} G${dot}${_fv(b2)} B${dot}${_fv(b3)} A`;
+    case 9:  return `${_fv((b0<<16|b1<<8|b2)>>>0)} measure${dot}${_fv(b3)} id_unit`;
+    case 10: return `${_fv(b0<<8|b1)} nozzle_min${dot}${_fv(b2<<8|b3)} nozzle_max`;
+    case 11: return `${_fv(b0)} dry_temp${dot}${_fv(b1)} dry_time${dot}${_fv(b2)} bed_min${dot}${_fv(b3)} bed_max`;
+    case 12: return `${_fv((b0<<24|b1<<16|b2<<8|b3)>>>0)} timestamp`;
+    case 13: return `${_fv(b0)} R2${dot}${_fv(b1)} G2${dot}${_fv(b2)} B2`;
+    case 14: return `${_fv(b0)} R3${dot}${_fv(b1)} G3${dot}${_fv(b2)} B3`;
+    case 15: return `${_fv(b0<<8|b1)} td_raw`;
+    case 23: return `${_fv((b0<<16|b1<<8|b2)>>>0)} measure_available`;
+    default:
+      // customMessage pages 16–22: show decoded ASCII chars
+      if (page >= 16 && page <= 22) {
+        const start = (page - 16) * 4;
+        const str = chunk.map(b => b >= 0x20 && b < 0x7F ? String.fromCharCode(b) : (b === 0 ? '·' : '?')).join('');
+        return `${_fv(`"${str}"`)} customMessage [${start}–${start + 3}]`;
+      }
+      // Signature pages
+      return _SIG_LABELS[page] || '';
+  }
+}
+
+// Returns an HTMLTableElement — columns aligned by table layout (not character padding)
+function _buildHexTable(hex) {
+  const bytes = hex.match(/.{2}/g).map(h => parseInt(h, 16));
+
+  const tbl = document.createElement('table');
+  tbl.className = 'rr-tbl';
+
+  // colgroup — fixed widths enforced by table-layout:fixed
+  tbl.innerHTML = `<colgroup>
+    <col class="rr-col-page"><col class="rr-col-off"><col class="rr-col-phex">
+    <col class="rr-col-b0"><col class="rr-col-b1"><col class="rr-col-b2"><col class="rr-col-b3">
+    <col class="rr-col-dec"><col></colgroup>
+  <thead><tr>
+    <th>Page</th><th>Offset</th><th>Hex</th>
+    <th>B0</th><th>B1</th><th>B2</th><th>B3</th>
+    <th>u32 BE</th><th class="rr-th-field">Field</th>
+  </tr></thead>`;
+
+  const tbody = document.createElement('tbody');
+
+  for (let i = 0; i < bytes.length; i += 4) {
+    const page  = 4 + Math.floor(i / 4);
+    const chunk = bytes.slice(i, i + 4);
+    const dec   = chunk.reduce((acc, b, j) => acc | (b << ((3-j)*8)), 0) >>> 0;
+    const isSig   = page >= 24;
+    const fieldHtml = _buildFieldLabel(page, chunk);
+
+    // Separator row before signature
+    if (page === 24) {
+      const sep = document.createElement('tr');
+      sep.className = 'rr-sep';
+      sep.innerHTML = `<td colspan="9">── Signature (ECDSA-P256) ─────</td>`;
+      tbody.appendChild(sep);
+    }
+
+    const tr = document.createElement('tr');
+    if (isSig) tr.className = 'rr-sig';
+    const pageHex = '0x' + page.toString(16).padStart(2, '0').toUpperCase();
+    tr.innerHTML =
+      `<td>${page}</td>` +
+      `<td>0x${i.toString(16).padStart(2,'0').toUpperCase()}</td>` +
+      `<td>${pageHex}</td>` +
+      chunk.map(b => `<td class="rr-hex">${b.toString(16).padStart(2,'0').toUpperCase()}</td>`).join('') +
+      `<td>${dec}</td>` +
+      `<td class="rr-field">${fieldHtml}</td>`;
+    tbody.appendChild(tr);
+  }
+  tbl.appendChild(tbody);
+  return tbl;
+}
+
+// Panel state: panelId → { open: bool, readerName: string }
+const _rrPanels = {};
+
+// ── Synchronized scroll across all rr-panel-body elements ────────────────────
+let _rrScrollLock = false;
+function _syncRRScroll(srcEl) {
+  if (_rrScrollLock) return;
+  _rrScrollLock = true;
+  const top = srcEl.scrollTop;
+  document.querySelectorAll('.rr-panel-body').forEach(b => {
+    if (b !== srcEl) b.scrollTop = top;
+  });
+  _rrScrollLock = false;
+}
+
+function _ensureRRPanel(readerId, readerName) {
+  const container = document.getElementById('rawread-panels');
+  const panelId   = `rr-panel-${readerId.replace(/\W/g,'_')}`;
+  if (document.getElementById(panelId)) return panelId;
+
+  _rrPanels[panelId] = { open: true, readerName };
+
+  const panel = document.createElement('div');
+  panel.id        = panelId;
+  panel.className = 'rr-panel';
+  panel.innerHTML = `
+    <div class="rr-rail" onclick="toggleRRPanel('${panelId}')">
+      <span class="rr-rail-label">${readerName.replace('ACS ','')}</span>
+    </div>
+    <div class="rr-content">
+      <div class="rr-panel-hdr">
+        <span style="font-size:11px;font-weight:700">${readerName}</span>
+        <span id="${panelId}-uid" style="font-size:10px;color:var(--muted);margin-left:6px"></span>
+        <div style="flex:1"></div>
+        <button class="rr-copy-btn" onclick="rrCopy(this,'${panelId}')">Copy hex</button>
+      </div>
+      <div class="rr-panel-body">
+        <div class="rr-status" id="${panelId}-status">Waiting for read…</div>
+      </div>
+    </div>`;
+  // Attach synchronized scroll listener
+  panel.querySelector('.rr-panel-body').addEventListener('scroll', function () {
+    _syncRRScroll(this);
+  });
+
+  container.appendChild(panel);
+  return panelId;
+}
+
+function toggleRRPanel(panelId) {
+  const panel = document.getElementById(panelId);
+  if (!panel) return;
+  const isOpen = !panel.classList.contains('rr-closed');
+  panel.classList.toggle('rr-closed', isOpen);
+  _rrPanels[panelId].open = !isOpen;
+}
+
+function rrCopy(btn, panelId) {
+  const body = document.getElementById(panelId)?.querySelector('.rr-panel-body');
+  if (!body) return;
+  const tbl = body.querySelector('.rr-tbl');
+  if (!tbl) return;
+  // One line per page: "0x04 B0 B1 B2 B3", skip separator rows
+  const hex = [...tbl.querySelectorAll('tbody tr')]
+    .filter(tr => !tr.classList.contains('rr-sep'))
+    .map(tr => {
+      const pageNum = parseInt(tr.querySelector('td')?.textContent.trim() || '0', 10);
+      const pageHex = '0x' + pageNum.toString(16).padStart(2, '0').toUpperCase();
+      const bytes   = [...tr.querySelectorAll('td.rr-hex')].map(td => td.textContent.trim()).join(' ');
+      return `${pageHex} ${bytes}`;
+    })
+    .join('\n');
+  navigator.clipboard.writeText(hex).then(() => {
+    btn.textContent = '✓ Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = 'Copy hex';
+      btn.classList.remove('copied');
+    }, 1500);
+  });
+}
+
+function openRawRead() {
+  const overlay = document.getElementById('rawread-overlay');
+  overlay.style.display = 'flex';
+}
+function closeRawRead() {
+  document.getElementById('rawread-overlay').style.display = 'none';
+}
+
+function rawRead() {
+  if (!_ws || _ws.readyState !== 1) return;
+  // Clear previous results from all panels
+  document.querySelectorAll('.rr-panel-body').forEach(b => {
+    b.innerHTML = '<div class="rr-status">Reading…</div>';
+  });
+  openRawRead();
+  const reqId = `rr_${Date.now()}`;
+  _ws.send(JSON.stringify({ type: 'read:request', reqId }));
+}
+
+async function burnRfid() {
+  // Ensure latest form values are encoded
+  if (!_lastPayload) { await generate(); }
+  if (!_lastPayload) return;
+  if (!_ws || _ws.readyState !== 1) return;
+
+  const activeReaders = [..._readerState.values()].filter(r => r.hasCard);
+  if (!activeReaders.length) return;
+
+  _burnPending = activeReaders.length;
+  _burnOkCount = 0;
+  _burnTotal   = activeReaders.length;
+  _burnUids    = [];
+
+  // Burn = write flow: show SDK Input (what was sent to chip), hide SDK Output (read result)
+  const _main = document.querySelector('main');
+  _main.classList.remove('sdk-input-closed');
+  _main.classList.add('sdk-closed');
+
+  const btn = document.getElementById('burn-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Burning…'; }
+
+  const hex = Array.from(_lastPayload).map(b => b.toString(16).padStart(2, '0')).join('');
+  _ws.send(JSON.stringify({ type: 'burn:write', reqId: Date.now(), payload: hex }));
 }
 
 // ── Export ─────────────────────────────────────────────────────────────────────
@@ -1406,7 +1953,8 @@ function exportBin() {
 
 // ── WebSocket / NFC reader integration ────────────────────────────────────────
 
-const _readerState = new Map(); // readerId → { id, name, connected, hasCard }
+const _readerState      = new Map(); // readerId → { id, name, connected, hasCard }
+const _cardRemoveTimers = new Map(); // readerId → setTimeout handle — debounce card:removed
 
 function nfcBarRender() {
   const bar = document.getElementById('nfc-bar');
@@ -1424,9 +1972,10 @@ function nfcBarRender() {
       .replace(/\(.*?\)/g, '').replace(/Interface \d+/i, '').replace(/PICC/i, '').trim()
       .replace(/\s+/g, ' ').substring(0, 22);
     el.title = r.name;
-    el.innerHTML = `<span class="nfc-dot"></span>${label}${r.hasCard ? ' · reading…' : ''}`;
+    el.innerHTML = `<span class="nfc-dot"></span>${label}${r.hasCard ? ' · ready' : ''}`;
     bar.appendChild(el);
   }
+  updateBurnBtn();
 }
 
 async function importFromScan(scanData) {
@@ -1437,6 +1986,7 @@ async function importFromScan(scanData) {
 
   _lastPayload = bytes;
   document.getElementById('export-btn').disabled = false;
+  updateBurnBtn();
 
   _currentVersion = f.id_tigertag >>> 0;
   document.querySelectorAll('.seg-btn').forEach(b =>
@@ -1464,14 +2014,10 @@ async function importFromScan(scanData) {
   document.getElementById('f-bed-max').value         = f.bed_max;
   document.getElementById('f-dry-temp').value        = f.dry_temp;
   document.getElementById('f-dry-time').value        = f.dry_time;
-  document.getElementById('f-measure').value         = f.measure;
   setSelectVal('f-unit', f.id_unit);
-  document.getElementById('f-avail').value = f.avail !== f.measure ? f.avail : 0;
+  _setAvail(f.measure, f.avail !== f.measure ? f.avail : null);
   document.getElementById('f-msg').value   = f.custom;
   if (f.uid) document.getElementById('f-uid').value = f.uid;
-  document.getElementById('f-date').value =
-    new Date((EPOCH_OFFSET + f.timestamp) * 1000).toISOString().split('T')[0];
-
   updateColorGroups();
   renderColorPreview();
   await renderOutput(f, _lastPayload);
@@ -1484,6 +2030,9 @@ function initWebSocket() {
 
   function connect() {
     try { ws = new WebSocket(wsUrl); } catch { return; }
+    _ws = ws;
+
+    ws.onopen = () => { updateBurnBtn(); };
 
     ws.onmessage = async (ev) => {
       let msg;
@@ -1513,6 +2062,9 @@ function initWebSocket() {
           break;
 
         case 'card:detected': {
+          // Cancel any pending card:removed debounce for this reader
+          clearTimeout(_cardRemoveTimers.get(msg.reader.id));
+          _cardRemoveTimers.delete(msg.reader.id);
           const r = _readerState.get(msg.reader.id);
           if (r) r.hasCard = true;
           nfcBarRender();
@@ -1521,19 +2073,115 @@ function initWebSocket() {
         }
 
         case 'card:removed': {
-          const r = _readerState.get(msg.reader.id);
-          if (r) r.hasCard = false;
-          nfcBarRender();
+          // Debounce: ACR122U fires card:removed on slight movement even when
+          // the chip is still present. Wait 1500 ms before marking hasCard=false.
+          clearTimeout(_cardRemoveTimers.get(msg.reader.id));
+          _cardRemoveTimers.set(msg.reader.id, setTimeout(() => {
+            const r = _readerState.get(msg.reader.id);
+            if (r) r.hasCard = false;
+            _cardRemoveTimers.delete(msg.reader.id);
+            nfcBarRender();
+          }, 1500));
           break;
         }
 
         case 'error':
           console.warn('[NFC]', msg.reader?.name, msg.message);
           break;
+
+        case 'burn:result': {
+          // Flash the reader chip in the NFC bar — green=ok, red=failed
+          const readerEl = document.getElementById('nfc-r-' + msg.reader.id.replace(/[^a-z0-9]/gi, '_'));
+          if (readerEl) {
+            readerEl.classList.add(msg.ok ? 'burn-ok' : 'burn-err');
+            // Show UID on the reader element for a few seconds
+            if (msg.uid) {
+              const prevTitle = readerEl.title;
+              readerEl.title = msg.ok
+                ? `✅ Written — UID: ${msg.uid}`
+                : `❌ Failed — UID: ${msg.uid}${msg.error ? '\n' + msg.error : ''}`;
+              setTimeout(() => { readerEl.classList.remove('burn-ok', 'burn-err'); readerEl.title = prevTitle; }, 4000);
+            } else {
+              setTimeout(() => readerEl.classList.remove('burn-ok', 'burn-err'), 3000);
+            }
+          }
+          _burnPending = Math.max(0, _burnPending - 1);
+          if (msg.ok) _burnOkCount++;
+          // Accumulate UID results for the done summary
+          if (!_burnUids) _burnUids = [];
+          _burnUids.push({ uid: msg.uid, ok: msg.ok, reader: msg.reader.name });
+          console.log(`[Burn] ${msg.ok ? '✅' : '❌'} ${msg.reader.name} — UID: ${msg.uid || '?'}${msg.error ? ' — ' + msg.error : ''}`);
+          break;
+        }
+
+        case 'read:result': {
+          const panelId = _ensureRRPanel(msg.reader.id, msg.reader.name);
+          const body    = document.querySelector(`#${panelId} .rr-panel-body`);
+          const uidEl   = document.getElementById(`${panelId}-uid`);
+          if (uidEl && msg.uid) uidEl.textContent = `UID: ${msg.uid}`;
+          body.innerHTML = '';
+          if (!msg.ok) {
+            body.innerHTML = `<div style="color:var(--err);font-size:12px">❌ ${msg.error || 'Read error'}</div>`;
+            break;
+          }
+          const bytesLabel = document.createElement('div');
+          bytesLabel.className = 'rr-status';
+          bytesLabel.textContent = `${msg.bytes} bytes — pages 4–${4 + msg.bytes/4 - 1}`;
+          body.appendChild(bytesLabel);
+          body.appendChild(_buildHexTable(msg.payload));
+          break;
+        }
+
+        case 'read:done': {
+          const rBtn = document.getElementById('rawread-btn');
+          if (rBtn) { rBtn.textContent = '🔬 Raw Read'; updateBurnBtn(); }
+          break;
+        }
+
+        case 'burn:done': {
+          const btn = document.getElementById('burn-btn');
+          if (btn) {
+            btn.textContent = _burnOkCount === _burnTotal
+              ? `✅ ${_burnOkCount}/${_burnTotal} written`
+              : `❌ ${_burnOkCount}/${_burnTotal} written`;
+            // Show UID(s) written in the SDK Input panel header area
+            if (_burnUids?.length) {
+              const uidLines = _burnUids.map(r =>
+                `${r.ok ? '✅' : '❌'} ${r.uid || '?'}`
+              ).join('   ');
+              const info = document.getElementById('sdk-left-burn-uids');
+              if (info) { info.textContent = uidLines; info.style.display = 'block'; }
+            }
+            // Reveal the Returns block — real SDK output from TigerTag.create()
+            const returnsWrap = document.getElementById('sdk-left-returns-wrap');
+            const returnsEl   = document.getElementById('sdk-left-returns');
+            if (returnsWrap && returnsEl) {
+              const burnResult = {
+                ok:    _burnOkCount === _burnTotal,
+                chips: _burnUids.map(r => Object.assign(
+                  { uid: r.uid || null, ok: r.ok },
+                  r.ok ? { pages_written: 20 } : { error: r.error || 'write failed' }
+                )),
+              };
+              returnsEl.textContent = JSON.stringify(burnResult, null, 2);
+              returnsWrap.style.display = 'block';
+            }
+            setTimeout(() => {
+              btn.textContent = '🔥 Burn';
+              updateBurnBtn();
+              _burnUids = [];
+              const info = document.getElementById('sdk-left-burn-uids');
+              if (info) info.style.display = 'none';
+            }, 4000);
+          }
+          break;
+        }
       }
     };
 
     ws.onclose = () => {
+      _ws = null;
+      updateBurnBtn();
       clearTimeout(retryTimer);
       retryTimer = setTimeout(connect, 3000);
     };
@@ -1550,6 +2198,12 @@ buildPresets();
 loadDB();
 selectVersion(ID_TIGERTAG);
 initWebSocket();
+
+// Fetch real SDK version from server and update the badge
+fetch('/api/version').then(r => r.json()).then(({ version }) => {
+  const badge = document.getElementById('sdk-version-badge');
+  if (badge) badge.textContent = 'SDK v' + version;
+}).catch(() => { /* server may not expose the route — keep placeholder */ });
 </script>
 </body>
 </html>

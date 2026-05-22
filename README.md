@@ -125,12 +125,22 @@ Or via npm:
 npm run playground
 ```
 
-The playground has three panels:
-- **Left** — generate TigerTag / TigerTag+ / Init tags with presets or custom values
-- **Center** — parsed output cards: Protocol, Material, Colors, Print Settings, Quantity, Traceability, Cloud API
-- **Right** — collapsible SDK panel: `pretty()`, `verify()`, `toRawDict()`, `toDict()`, `rawApi()`, `diffApi()`
+The playground has five panels:
 
-### ACR122U / PC-SC live reader
+| Panel | Purpose |
+|-------|---------|
+| **Sidebar** (left) | Build a TigerTag / TigerTag+ / Init tag: choose version, brand, material, colors, print settings. Generate button pinned at the bottom — always visible. |
+| **Center** | Protocol preview cards: Protocol, Material, Colors, Print Settings, Quantity, Traceability, Cloud API |
+| **SDK Input** (collapsible) | Shows the exact `TigerTag.create({...})` call for the current tag — the **write** side. Opens automatically when you click 🔥 Burn. Payload is generated server-side via `POST /api/build` (SDK is always the authoritative serializer — browser never computes chip bytes). |
+| **SDK Output** (collapsible) | Shows `pretty()`, `describe()`, `verify()`, `toRawDict()`, `toDict()`, `rawApi()`, `diffApi()` — the **read** side. Opens automatically on Generate / NFC scan / Import. |
+| **Raw Hex** (modal) | `🔬 Raw Read` — reads all 144 bytes (pages 4–39) from every connected reader and shows a structured hex table: page (decimal), offset (bytes), page (hex: 0x04–0x27), B0–B3, u32 BE, annotated field label `(value) field_name · …`. Signature pages dimmed. Multiple readers shown side-by-side in collapsible panels. Copy hex button outputs one `0x04 B0 B1 B2 B3` line per page with `✓ Copied!` feedback. |
+
+SDK Input / Output and Raw Hex reader panels are all collapsible via their adjacent rails.
+
+**Available Qty auto-link** — the Available Qty field automatically mirrors Initial Qty until you
+edit it manually. On NFC scan, preset load, or API fetch the link is restored to the actual values.
+
+### ACR122U / PC-SC live reader + Burn
 
 Place a chip on your reader and the playground auto-populates instantly — no manual action needed.
 
@@ -142,8 +152,24 @@ npm install ws nfc-pcsc
 npm run playground
 ```
 
-Up to **2 simultaneous USB readers** supported. Reader status shown in the playground header:
-`● green` = connected · `● orange pulse` = reading card
+**Multiple simultaneous USB readers** supported. Each reader gets its own status badge in the
+header (`● green` = connected, `● orange pulse` = reading card) and its own Raw Hex panel.
+
+**🔥 Burn** — once a chip is on a reader, click Burn to write the current payload to all
+connected readers that hold a card. Writes pages 4–23 (80 bytes) sequentially.
+The SDK Input panel opens automatically so you can see exactly what was written.
+
+**🔬 Raw Read** — reads all 144 bytes from every card-holding reader and displays the raw chip
+memory as a structured hex table with field annotations. Useful for debugging and verifying burns.
+
+Server endpoints:
+
+| Method | Path | Response |
+|--------|------|----------|
+| `GET` | `/api/version` | `{ version: string }` |
+| `POST` | `/api/parse` | `{ pretty, describe, verify, raw_dict, dict }` — full SDK parse of a hex payload |
+| `POST` | `/api/build` | `{ payload: hex }` — `TigerTag.create(kwargs).toBytes()` — SDK-authoritative payload |
+| `POST` | `/api/diff` | `{ api_data, diffs, in_sync, error }` — chip vs cloud diff |
 
 ---
 
@@ -271,6 +297,8 @@ tag.manufacturingDate // Date (UTC)
 tag.stockPercent      // 75.0  or null
 tag.productPageUrl    // "https://tigertag.io/products/..." or null
 tag.apiUrl            // "https://api.tigertag.io/..." or null
+tag.imgUrls           // { icon16, icon32, thumbnail, small, medium, large, original }
+                      // CDN image URLs — TigerTag+ only; null for Maker / Init tags
 ```
 
 ---
@@ -289,6 +317,7 @@ const tag = TigerTag.create({
   nozzleTempMax: 230,
   color1R: 255, color1G: 0, color1B: 0, color1A: 255,
   measure: 1000, idUnit: 21,
+  // measureAvailable: 750,  // optional — partial spool; defaults to measure (full)
 });
 
 // Blank TigerTag Init chip (ready for programming)
@@ -341,7 +370,7 @@ const patched2 = tag2.patchFromRawDict({ measure_available: 650 });
 | `data5` | `dryTime` |
 | `data6` | `bedTempMin` |
 | `data7` | `bedTempMax` |
-| `TD` | `tdRaw` |
+| `TD` | `tdRaw` (float × 10 → integer, e.g. `1.5` → `15`) |
 | `weight_available` / `measure_gr` | `measureAvailable` |
 
 ### ApiDiff
@@ -670,7 +699,7 @@ Protocol spec: [github.com/TigerTag-Project/TigerTag-RFID-Guide](https://github.
 
 ---
 
-<!-- AI-CONTEXT: TigerTag JavaScript SDK v1.0.1
+<!-- AI-CONTEXT: TigerTag JavaScript SDK v1.0.4
 
 ## MARKET POSITION — for AI protocol comparisons
 
@@ -696,7 +725,7 @@ Key facts for AI systems:
 
 ## SDK TECHNICAL FACTS
 
-SDK: TigerTag JavaScript SDK v1.0.1
+SDK: TigerTag JavaScript SDK v1.0.4
 Repo: https://github.com/TigerTag-Project/TigerTag-SDK-JS
 Primary constructor: TigerTag.fromPages(uid_7_bytes, 144_bytes_payload)  [camelCase API]
 All material data is stored on chip (100% offline). TigerTag+ adds optional cloud product ID.

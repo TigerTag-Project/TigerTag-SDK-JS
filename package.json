@@ -1,6 +1,6 @@
 {
   "name": "tigertag",
-  "version": "1.0.2",
+  "version": "1.0.5",
   "description": "JavaScript SDK for TigerTag RFID material identification",
   "main": "src/index.js",
   "bin": {

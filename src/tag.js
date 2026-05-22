@@ -32,6 +32,9 @@ const _TIGERTAG_EPOCH_MS = TIGERTAG_EPOCH.getTime();
 
 const _PRODUCT_PAGE_BASE = 'https://tigertag.io/pages/product-infos';
 const _API_PRODUCT_BASE  = 'https://api.tigertag.io/api:tigertag/product/get';
+const _CDN_IMG_BASE      = 'https://cdn.tigertag.io/img';
+// Maps id_type → CDN `type` query param. 142=Filament, 173=Resin.
+const _IMG_TYPE_MAP      = { 142: 'filament', 173: 'resin' };
 
 const _PROTECTED_FIELDS = new Set([
   'idTigertag', 'idProduct', 'uid', 'signatureR', 'signatureS',
@@ -212,6 +215,32 @@ class TigerTag {
     if (this.isMaker || this.isInit) return null;
     const uidPart = this.uidHex ? `uid=${BigInt('0x' + this.uidHex)}&` : '';
     return `${_API_PRODUCT_BASE}?${uidPart}product_id=${this.idProduct}`;
+  }
+
+  /**
+   * CDN image URLs for all 7 sizes (TigerTag+ only, null for Maker/Init).
+   *
+   * Sizes (all square, cover crop, upscale allowed):
+   *   icon 16 · thumb 32 · small 64 · compact 128 · medium 256 · large 512 · master 1024
+   *
+   * Example: tag.imgUrls.large
+   * → "https://cdn.tigertag.io/img?type=filament&id=2159613929&size=large&v=3&stream=1"
+   */
+  get imgUrls() {
+    if (this.isMaker || this.isInit) return null;
+    const type = _IMG_TYPE_MAP[this.idType] || 'filament';
+    const id   = this.idProduct;
+    const v    = Date.now(); // cache-buster — unique on every access
+    const mk   = (size) => `${_CDN_IMG_BASE}?type=${type}&id=${id}&size=${size}&v=${v}&stream=1`;
+    return {
+      icon:    mk('icon'),    //   16 × 16
+      thumb:   mk('thumb'),   //   32 × 32
+      small:   mk('small'),   //   64 × 64
+      compact: mk('compact'), //  128 × 128
+      medium:  mk('medium'),  //  256 × 256
+      large:   mk('large'),   //  512 × 512
+      master:  mk('master'),  // 1024 × 1024
+    };
   }
 
   /** Lazily loaded bundled database. */
@@ -412,10 +441,11 @@ class TigerTag {
     dryTime       = 0,
     bedTempMin    = 0,
     bedTempMax    = 0,
-    timestamp     = null,
-    customMessage = '',
-    tdRaw         = 0,
-    db            = null,
+    timestamp        = null,
+    customMessage    = '',
+    tdRaw            = 0,
+    measureAvailable = null,
+    db               = null,
   } = {}) {
     let idTigertag;
     if (productId !== MAKER_PRODUCT_ID && productId !== INIT_PRODUCT_ID) {
@@ -439,7 +469,7 @@ class TigerTag {
       color3R, color3G, color3B,
       measure,
       idUnit,
-      measureAvailable: measure,
+      measureAvailable: measureAvailable != null ? measureAvailable : measure,
       nozzleTempMin, nozzleTempMax, dryTemp, dryTime, bedTempMin, bedTempMax,
       timestamp,
       customMessage,
@@ -904,6 +934,65 @@ class TigerTag {
   // ── Output ──────────────────────────────────────────────────────────────
 
   /**
+   * Convert measure + measureAvailable to their canonical base unit and return
+   * convenience fields ready to spread into a dict.
+   *
+   * Weight units  → measure_gr / measure_available_gr  (always in grams)
+   * Volume units  → measure_ml / measure_available_ml  (always in millilitres)
+   * Other units   → {} (no extra fields)
+   *
+   * id_unit mapping (from id_measure_unit.json):
+   *   10 mg · 21 g · 35 kg
+   *   48 ml · 62 cl · 79 L · 95 m³
+   *
+   * @private
+   */
+  static _baseUnitFields(measure, measureAvailable, idUnit) {
+    // Weight: mg(10) g(21) kg(35) → grams
+    const WEIGHT_TO_G   = { 10: 0.001, 21: 1, 35: 1000 };
+    // Volume: ml(48) cl(62) L(79) m³(95) → millilitres
+    const VOLUME_TO_ML  = { 48: 1, 62: 10, 79: 1000, 95: 1_000_000 };
+    // Size:   mm(112) cm(130) m(149) → millimetres
+    const SIZE_TO_MM    = { 112: 1, 130: 10, 149: 1000 };
+    // Area:   m²(170) → square millimetres
+    const AREA_TO_MM2   = { 170: 1_000_000 };
+
+    const wf = WEIGHT_TO_G[idUnit];
+    if (wf !== undefined) {
+      return {
+        measure_gr:           Math.round(measure          * wf),
+        measure_available_gr: Math.round(measureAvailable * wf),
+      };
+    }
+
+    const vf = VOLUME_TO_ML[idUnit];
+    if (vf !== undefined) {
+      return {
+        measure_ml:           Math.round(measure          * vf),
+        measure_available_ml: Math.round(measureAvailable * vf),
+      };
+    }
+
+    const sf = SIZE_TO_MM[idUnit];
+    if (sf !== undefined) {
+      return {
+        measure_mm:           Math.round(measure          * sf),
+        measure_available_mm: Math.round(measureAvailable * sf),
+      };
+    }
+
+    const af = AREA_TO_MM2[idUnit];
+    if (af !== undefined) {
+      return {
+        measure_mm2:           Math.round(measure          * af),
+        measure_available_mm2: Math.round(measureAvailable * af),
+      };
+    }
+
+    return {};
+  }
+
+  /**
    * Return protocol fields exactly as stored on the chip — no label resolution,
    * no unit conversion, no date formatting.
    * @returns {object}
@@ -940,9 +1029,11 @@ class TigerTag {
       td_raw:             this.tdRaw,
       message:            this.customMessage,
       measure_available:  this.measureAvailable,
+      ...TigerTag._baseUnitFields(this.measure, this.measureAvailable, this.idUnit),
       uid:                this.uidHex,
       product_page_url:   this.productPageUrl,
       api_url:            this.apiUrl,
+      img:                this.imgUrls,
     };
   }
 
@@ -1084,7 +1175,9 @@ class TigerTag {
       bedTempMax:   doc.data7       ?? 0,   // data7 = bed_max
       timestamp:    doc.timestamp   ?? null,
       customMessage: doc.message    ?? '',
-      tdRaw:        doc.TD          ?? 0,   // TD = td_raw
+      // Firestore stores TD as a human-readable float (e.g. 1.5).
+      // The chip encodes tdRaw = round(tdValue × 10) as a UInt16.
+      tdRaw:        doc.TD != null ? Math.round(doc.TD * 10) : 0,
       db,
     });
   }
@@ -1141,6 +1234,7 @@ class TigerTag {
               + 'Query the api_url field for the full enriched product JSON.',
         product_page_url: this.productPageUrl,
         api_url:          this.apiUrl,
+        img:              this.imgUrls,
       },
       material: {
         id:       this.idMaterial,
@@ -1196,6 +1290,7 @@ class TigerTag {
       measure: {
         initial:     this.measure,
         available:   this.measureAvailable,
+        ...TigerTag._baseUnitFields(this.measure, this.measureAvailable, this.idUnit),
         percent:     stock,
         unit:        unitLabel,
         description: `Material quantity: ${this.measureAvailable} ${unitLabel} remaining `
@@ -1309,6 +1404,14 @@ class TigerTag {
       );
     }
 
+    const imgs = this.imgUrls; // snapshot — single Date.now() for this describe() call
+    if (imgs) {
+      parts.push(
+        `Product image (medium 256×256): ${imgs.medium}`
+        + ` — also available: icon·16 thumb·32 small·64 compact·128 large·512 master·1024.`,
+      );
+    }
+
     if (this.isSigned) {
       parts.push('Tag carries an ECDSA-P256 signature — call tag.verify() to confirm authenticity.');
     } else {
@@ -1339,6 +1442,7 @@ class TigerTag {
       rec[kMin] != null ? `  (DB: ${rec[kMin]}–${rec[kMax]}${suffix})` : '';
 
     const idHex = this.idTigertag.toString(16).toUpperCase().padStart(8, '0');
+    const imgs  = this.imgUrls; // snapshot — single Date.now() for the whole render
 
     return (
       `┌─ TigerTag ────────────────────────────────────────────\n`
@@ -1347,6 +1451,10 @@ class TigerTag {
       + `│  UID          ${this.uidHex || '— (partial dump)'}\n`
       + (this.productPageUrl
         ? `│  Product page ${this.productPageUrl}\n│  API JSON     ${this.apiUrl}\n`
+        : '')
+      + (imgs
+        ? `│  Image (med)  ${imgs.medium}\n`
+          + `│  Img sizes    icon·16 thumb·32 small·64 compact·128 medium·256 large·512 master·1024\n`
         : '')
       + `├─ Material ────────────────────────────────────────────\n`
       + `│  Material     ${TigerTagDB.label(_db.material(this.idMaterial))}  (id=${this.idMaterial})\n`
