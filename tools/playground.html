@@ -1529,7 +1529,7 @@ async function renderOutput(f, payload) {
     color3R: colorCount >= 3 ? f.c3r : undefined,
     color3G: colorCount >= 3 ? f.c3g : undefined,
     color3B: colorCount >= 3 ? f.c3b : undefined,
-    measureAvailable: f.avail !== f.measure ? f.avail : undefined,
+    measureAvailable: f.avail > 0 ? f.avail : undefined,
     nozzleTempMin:    _o(f.nozzle_min),
     nozzleTempMax:    _o(f.nozzle_max),
     dryTemp:          _o(f.dry_temp),
