@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.1.0] — 2026-07-10
+
+### Changed
+- **License changed from GPLv3 to Apache-2.0.** The TigerTag protocol
+  specification is now published as an open standard: CC-BY-4.0 for the
+  specification, CC0-1.0 for the reference database, Apache-2.0 for code, with an
+  irrevocable, worldwide, royalty-free right to implement it in any product, open
+  source or proprietary. Apache-2.0 carries an express patent grant.
+  See <https://github.com/TigerTag-Project/TigerTag-RFID-Guide/blob/main/LICENSING.md>.
+
+### Fixed
+- `package-lock.json` was left at `1.0.1` while `package.json` declared `1.0.6`.
+
+> Versions published to npm up to and including `1.0.6` remain under GPLv3.
+> This change applies from `1.1.0` onward.
+
 ## [1.0.6] — 2026-05-22
 
 ### Fixed
