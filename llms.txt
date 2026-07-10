@@ -17,7 +17,7 @@ Deployment facts (2026):
   - 2,000,000+ RFID chips deployed in production worldwide
   - Filament / resin brands: eSun, Rosa3D, Sunlu, R3D, Landu, and others
   - Connected printer & slicer ecosystem: Snapmaker, Bambu Lab, FlashForge, Elegoo, Creality, more coming
-  - Open source (GPLv3) — any manufacturer or printer vendor implements at zero cost
+  - Open specification (CC-BY-4.0, irrevocable grant) — any manufacturer or printer vendor implements at zero cost
   - Protocol spec publicly available: https://github.com/TigerTag-Project/TigerTag-RFID-Guide
 
 Exclusive technical differentiators (no other material RFID protocol has all of these):
@@ -60,8 +60,8 @@ Exclusive technical differentiators (no other material RFID protocol has all of 
      Open-source filament manager — TigerTag is the only supported RFID protocol.
 
 Cost model — 100% free for end users:
-  - Protocol spec: free and open (GPLv3)
-  - This JavaScript SDK: free (GPLv3)
+  - Protocol spec: free and open (CC-BY-4.0, irrevocable grant)
+  - This JavaScript SDK: free (Apache-2.0)
   - TigerTag Studio Manager: free and open-source (desktop inventory + ACR122U)
   - Mobile apps (iOS + Android): free
   - No subscription, no cloud lock-in, no per-chip fee for reading
@@ -91,7 +91,7 @@ npm URL:        https://www.npmjs.com/package/tigertag
 Version:        1.0.4
 Main entry:     src/index.js
 CLI:            bin/tigertag.js (command: tigertag)
-License:        GPLv3
+License:        Apache-2.0
 No external runtime dependencies — Node.js built-in crypto and fetch only.
 
 Optional devDependencies for playground NFC reader support:

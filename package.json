@@ -32,7 +32,7 @@
     "electron"
   ],
   "author": "TigerTag <tigertag@tigertag.io> (https://tigertag.io)",
-  "license": "GPL-3.0",
+  "license": "Apache-2.0",
   "homepage": "https://tigertag.io",
   "repository": {
     "type": "git",
