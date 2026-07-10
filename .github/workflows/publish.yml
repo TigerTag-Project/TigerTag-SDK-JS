@@ -41,14 +41,17 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          # Node 24 bundles npm >= 11.5.1, which Trusted Publishing (OIDC) requires.
+          # Do NOT upgrade npm in place with `npm install -g npm@latest`: overwriting the
+          # toolcache npm leaves its bundled dependencies half-replaced, and `npm publish
+          # --provenance` then dies with "Cannot find module 'sigstore'".
+          node-version: '24'
           cache: 'npm'
           # No registry-url: prevents setup-node from writing an _authToken line into
           # .npmrc, which would shadow the OIDC token exchange done by Trusted Publisher.
 
-      - name: Upgrade npm to an OIDC-capable version
-        # Trusted publishing (OIDC) requires npm >= 11.5.1; Node 22 ships with npm 10.x.
-        run: npm install -g npm@latest
+      - name: Show npm version
+        run: npm --version
 
       - name: Install dependencies (skip optional native modules)
         run: npm ci --omit=optional
