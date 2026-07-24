@@ -928,6 +928,13 @@
     ]
   },
   {
+    "id": 63757,
+    "name": "Copper3D",
+    "type_ids": [
+      142
+    ]
+  },
+  {
     "id": 65535,
     "name": "Generic",
     "type_ids": [
