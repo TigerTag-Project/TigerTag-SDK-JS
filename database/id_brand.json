@@ -34,6 +34,14 @@
     ]
   },
   {
+    "id": 2049,
+    "name": "Inslogic",
+    "type_ids": [
+      142,
+      173
+    ]
+  },
+  {
     "id": 2517,
     "name": "Smart Materials 3D",
     "type_ids": [
