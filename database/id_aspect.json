@@ -60,24 +60,19 @@
     "color_count": 1
   },
   {
+    "id": 132,
+    "label": "Fiber",
+    "color_count": 1
+  },
+  {
     "id": 134,
     "label": "Satin",
     "color_count": 1
   },
   {
-    "id": 144,
-    "label": "Galaxy",
-    "color_count": 0
-  },
-  {
     "id": 145,
     "label": "Rainbow",
     "color_count": 3
-  },
-  {
-    "id": 158,
-    "label": "Special",
-    "color_count": 0
   },
   {
     "id": 168,
