@@ -48,6 +48,7 @@ function makePayload({
   color2R       = 0,   color2G = 255, color2B = 0,
   color3R       = 0,   color3G = 0,   color3B = 255,
   tdRaw         = 0,
+  tagInfo      = 0,
   customMessage = Buffer.alloc(0),
   measureAvail  = 800,
   includeSig    = false,
@@ -71,7 +72,7 @@ function makePayload({
   buf.writeUInt16BE(nozzleMax, o); o += 2;
   buf[o++] = dryTemp; buf[o++] = dryTime; buf[o++] = bedMin; buf[o++] = bedMax;
   buf.writeUInt32BE(timestamp >>> 0, o); o += 4;
-  buf[o++] = color2R; buf[o++] = color2G; buf[o++] = color2B; buf[o++] = 0;
+  buf[o++] = color2R; buf[o++] = color2G; buf[o++] = color2B; buf[o++] = tagInfo;
   buf[o++] = color3R; buf[o++] = color3G; buf[o++] = color3B; buf[o++] = 0;
   buf.writeUInt16BE(tdRaw, o); o += 2;
   buf[o++] = 0; buf[o++] = 0;
@@ -544,4 +545,178 @@ describe('Fixture smoke tests', () => {
       expect(tag2.nozzleTempMin).toBe(tag.nozzleTempMin);
     });
   }
+});
+
+// ── Tag index / tag count (protocol v2.2) ────────────────────────────────────
+
+describe('Tag index / tag count', () => {
+  const REQUIRED = {
+    idMaterial: 38219, idAspect1: 1, idType: 0x8E, idBrand: 1,
+    measure: 1000, idUnit: 1,
+    color1R: 255, color1G: 0, color1B: 0, color1A: 255,
+  };
+
+  test.each([
+    ['0x00', 0x00, 0, 0],
+    ['0x11', 0x11, 1, 1],
+    ['0x12', 0x12, 2, 1],
+    ['0x22', 0x22, 2, 2],
+  ])('parse byte %s → count %i, index %i', (_label, byte, count, index) => {
+    const tag = TigerTag.fromPages(TEST_UID, makePayload({ tagInfo: byte }));
+    expect(tag.tagInfo).toBe(byte);
+    expect(tag.tagCount).toBe(count);
+    expect(tag.tagIndex).toBe(index);
+  });
+
+  test('byte +39 round-trips through toBytes()', () => {
+    const payload = makePayload({ tagInfo: 0x22 });
+    const tag = TigerTag.fromPages(TEST_UID, payload);
+    const out = tag.toBytes();
+    expect(out[39]).toBe(0x22);
+    expect(out.equals(payload)).toBe(true);
+  });
+
+  test('create({ tagCount: 2, tagIndex: 2 }) writes 0x22', () => {
+    const tag = TigerTag.create({ ...REQUIRED, tagCount: 2, tagIndex: 2 });
+    expect(tag.tagInfo).toBe(0x22);
+    expect(tag.toBytes()[39]).toBe(0x22);
+    expect(tag.validate()).toEqual([]);
+  });
+
+  test('twin tag: create() with one explicit timestamp → identical tags except byte +39', () => {
+    const ts = 812345678;
+    const chip1 = TigerTag.create({ ...REQUIRED, timestamp: ts, tagCount: 2, tagIndex: 1 }).toBytes();
+    const chip2 = TigerTag.create({ ...REQUIRED, timestamp: ts, tagCount: 2, tagIndex: 2 }).toBytes();
+    expect(chip1.readUInt32BE(32)).toBe(ts);
+    expect(chip2.readUInt32BE(32)).toBe(ts);
+    expect([chip1[39], chip2[39]]).toEqual([0x12, 0x22]);
+    const diff = [...chip1].map((b, i) => (b !== chip2[i] ? i : -1)).filter((i) => i >= 0);
+    expect(diff).toEqual([39]);
+  });
+
+  test('create() defaults to 0x00 (unknown), asInit() is 0x00', () => {
+    expect(TigerTag.create(REQUIRED).tagInfo).toBe(0);
+    expect(TigerTag.asInit().toBytes()[39]).toBe(0);
+  });
+
+  test('create() rejects values that do not fit in a nibble', () => {
+    expect(() => TigerTag.create({ ...REQUIRED, tagCount: 16 })).toThrow(RangeError);
+    expect(() => TigerTag.create({ ...REQUIRED, tagIndex: -1 })).toThrow(RangeError);
+  });
+
+  test('validate() warns when index > count', () => {
+    const tag = TigerTag.fromPages(TEST_UID, makePayload({ tagInfo: 0x32 }));
+    expect(tag.validate().some((w) => w.includes('Tag index (3) > tag count (2)'))).toBe(true);
+  });
+
+  test('validate() warns when count is 1 and index > 1', () => {
+    const tag = TigerTag.fromPages(TEST_UID, makePayload({ tagInfo: 0x21 }));
+    expect(tag.validate().some((w) => w.includes('Single-tag item'))).toBe(true);
+  });
+
+  test('validate() accepts count known / index unknown and count unknown / index set', () => {
+    for (const byte of [0x00, 0x02, 0x20, 0x11, 0x12]) {
+      const tag = TigerTag.fromPages(TEST_UID, makePayload({ tagInfo: byte }));
+      expect(tag.validate().filter((w) => /tag (index|count)|single-tag/i.test(w))).toEqual([]);
+    }
+  });
+
+  test('validate() warns when tagInfo is not a u8', () => {
+    const tag = TigerTag.fromPages(TEST_UID, makePayload()).patch({ tagInfo: 0x1FF });
+    expect(tag.validate().some((w) => w.includes('out of range'))).toBe(true);
+  });
+
+  test('patch() updates count and index independently', () => {
+    const tag = TigerTag.fromPages(TEST_UID, makePayload({ tagInfo: 0x11 }));
+    const twin = tag.patch({ tagCount: 2 });
+    expect(twin.tagInfo).toBe(0x12);
+    const second = twin.patch({ tagIndex: 2 });
+    expect(second.tagInfo).toBe(0x22);
+    expect(tag.tagInfo).toBe(0x11); // immutable
+    expect(tag.patch({ tagInfo: 0x12 }).tagIndex).toBe(1);
+    expect(() => tag.patch({ tagIndex: 16 })).toThrow(RangeError);
+  });
+
+  test('patchFromRawDict() / fromRawDict() accept tag_info', () => {
+    const tag = TigerTag.fromPages(TEST_UID, makePayload());
+    expect(tag.patchFromRawDict({ tag_info: 0x22 }).tagInfo).toBe(0x22);
+    expect(TigerTag.fromRawDict({ ...tag.toRawDict(), tag_info: 0x12 }).tagInfo).toBe(0x12);
+  });
+
+  test('toRawDict() exposes tag_info', () => {
+    const tag = TigerTag.fromPages(TEST_UID, makePayload({ tagInfo: 0x12 }));
+    expect(tag.toRawDict().tag_info).toBe(0x12);
+  });
+
+  test('toDict() exposes tag_count / tag_index, null when unknown', () => {
+    const d = TigerTag.fromPages(TEST_UID, makePayload({ tagInfo: 0x12 })).toDict();
+    expect(d.tag_count).toBe(2);
+    expect(d.tag_index).toBe(1);
+    expect(d.protocol).toBe('TigerTag Open Source v2.2');
+    const u = TigerTag.fromPages(TEST_UID, makePayload()).toDict();
+    expect(u.tag_count).toBeNull();
+    expect(u.tag_index).toBeNull();
+    const partial = TigerTag.fromPages(TEST_UID, makePayload({ tagInfo: 0x02 })).toDict();
+    expect(partial.tag_count).toBe(2);
+    expect(partial.tag_index).toBeNull();
+  });
+
+  test('describe() names the item from idType: filament, or "item" when unknown', () => {
+    const filament = TigerTag.fromPages(TEST_UID, makePayload({ idType: 142, tagInfo: 0x12 }));
+    expect(filament.describe()).toContain('Tag 1 of 2 on this filament.');
+    const resin = TigerTag.fromPages(TEST_UID, makePayload({ idType: 173, tagInfo: 0x22 }));
+    expect(resin.describe()).toContain('Tag 2 of 2 on this resin.');
+    const unknown = TigerTag.fromPages(TEST_UID, makePayload({ idType: 0xFE, tagInfo: 0x02 }));
+    expect(unknown.describe()).toContain('Tag ? of 2 on this item.');
+    expect(TigerTag.fromPages(TEST_UID, makePayload()).describe()).not.toMatch(/Tag \S+ of/);
+  });
+
+  test('pretty() prints the tag line', () => {
+    const twin = TigerTag.fromPages(TEST_UID, makePayload({ tagInfo: 0x12 })).pretty();
+    expect(twin).toContain('Tag          1 of 2\n');
+    const unknown = TigerTag.fromPages(TEST_UID, makePayload()).pretty();
+    expect(unknown).toContain('Tag          ? of ? (unknown)\n');
+    const partial = TigerTag.fromPages(TEST_UID, makePayload({ tagInfo: 0x02 })).pretty();
+    expect(partial).toContain('Tag          ? of 2\n');
+  });
+
+  test('patching only tagCount / tagIndex changes page 0x0D byte 3 and nothing else', () => {
+    const payload = makePayload({ color2R: 0x12, color2G: 0x34, color2B: 0x56, includeSig: true });
+    const tag = TigerTag.fromPages(TEST_UID, payload);
+    const out = tag.patch({ tagCount: 2, tagIndex: 1 }).toBytes(true);
+    // Page 0x0D = payload bytes 36–39: color2 RGB + tagInfo
+    expect([...out.subarray(36, 40)]).toEqual([0x12, 0x34, 0x56, 0x12]);
+    const changed = [...out].map((b, i) => (b !== payload[i] ? i : -1)).filter((i) => i >= 0);
+    expect(changed).toEqual([39]);
+    // Patching color 2 keeps tagInfo
+    const recolored = TigerTag.fromPages(TEST_UID, out).patch({ color2R: 0xAA });
+    expect(recolored.toBytes()[39]).toBe(0x12);
+  });
+
+  test('signature still verifies after changing tagInfo', () => {
+    const { createSign, generateKeyPairSync } = require('crypto');
+    const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+    const publicKeyPem = publicKey.export({ type: 'spki', format: 'pem' });
+
+    const idTigertag = 0x01000001;
+    const idProduct  = 0xFFFFFFFF;
+    const block4 = Buffer.alloc(4); block4.writeUInt32BE(idTigertag, 0);
+    const block5 = Buffer.alloc(4); block5.writeUInt32BE(idProduct >>> 0, 0);
+
+    const sign = createSign('SHA256');
+    sign.update(Buffer.concat([TEST_UID, block4, block5]));
+    const raw = sign.sign({ key: privateKey, dsaEncoding: 'ieee-p1363' });
+
+    const payload = Buffer.concat([makePayload({ idTigertag, idProduct }), raw]);
+    const tag = TigerTag.fromPages(TEST_UID, payload);
+
+    const db = new TigerTagDB();
+    db._versions = [{ id: idTigertag, label: 'test', public_key: publicKeyPem }];
+    expect(tag.verify(db).status).toBe(SignatureResult.VALID);
+
+    const twin = tag.patch({ tagCount: 2, tagIndex: 1 });
+    const reread = TigerTag.fromPages(TEST_UID, twin.toBytes(true));
+    expect(reread.tagInfo).toBe(0x12);
+    expect(reread.verify(db).status).toBe(SignatureResult.VALID);
+  });
 });

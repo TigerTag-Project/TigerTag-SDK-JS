@@ -27,7 +27,7 @@
   <line x1="1" y1="46" x2="679" y2="46" class="sep"/>
 
   <text x="340" y="19" text-anchor="middle" class="title">NTAG Chip Memory Layout</text>
-  <text x="340" y="35" text-anchor="middle" class="sub">Pages 0x04–0x27 · 144 bytes user data · TigerTag Open Source v2.1 · NTAG213 / 215 / 216 compatible</text>
+  <text x="340" y="35" text-anchor="middle" class="sub">Pages 0x04–0x27 · 144 bytes user data · TigerTag Open Source v2.2 · NTAG213 / 215 / 216 compatible</text>
 
   <!-- Column header row -->
   <rect x="1" y="46" width="678" height="24" class="hdbg"/>
@@ -140,7 +140,7 @@
   <text x="54"  y="302" text-anchor="middle" class="mono">0x0D</text>
   <text x="112" y="302" text-anchor="middle" class="mono">+36</text>
   <text x="158" y="302" text-anchor="middle" class="mono">4 B</text>
-  <text x="184" y="302" class="field">Color 2 — RGB (3 bytes) · padding</text>
+  <text x="184" y="302" class="field">Color 2 — RGB (3 bytes) · tag index / count (u8, 0x12 = 1 of 2)</text>
   <text x="636" y="302" text-anchor="middle" class="cat">Colors</text>
   <line x1="1" y1="310" x2="679" y2="310" class="sep"/>
 

@@ -24,7 +24,7 @@
  * TigerTag class — binary parsing, serialization, CRUD, and cloud sync.
  */
 
-const { TigerTagDB, syncDatabases, _BUNDLED_DB_PATH } = require('./db');
+const { TigerTagDB, syncDatabases } = require('./db');
 const { SignatureResult, verifySignature } = require('./signature');
 
 // ── Protocol constants ──────────────────────────────────────────────────────
@@ -61,6 +61,7 @@ const _PATCHABLE_FIELDS = new Set([
   'measure', 'idUnit', 'measureAvailable',
   'nozzleTempMin', 'nozzleTempMax', 'dryTemp', 'dryTime', 'bedTempMin', 'bedTempMax',
   'timestamp', 'customMessage', 'tdRaw',
+  'tagInfo', 'tagCount', 'tagIndex',
 ]);
 
 // ── ApiDiff ─────────────────────────────────────────────────────────────────
@@ -155,6 +156,11 @@ class TigerTag {
     // HueForge
     this.tdRaw = fields.tdRaw || 0;
 
+    // Tag index / tag count (protocol v2.2) — u8 at payload offset +39.
+    // High nibble = which tag this one is, low nibble = tags on the item (0 = unknown),
+    // so the hex reads "index/count": 0x12 = tag 1 of 2.
+    this.tagInfo = fields.tagInfo || 0;
+
     // Signature (optional)
     this.signatureR = fields.signatureR instanceof Buffer ? fields.signatureR : Buffer.alloc(32);
     this.signatureS = fields.signatureS instanceof Buffer ? fields.signatureS : Buffer.alloc(32);
@@ -190,6 +196,21 @@ class TigerTag {
 
   /** HueForge TD as float. 0.0 = undefined, valid range 0.1–100.0. */
   get tdValue() { return this.tdRaw / 10.0; }
+
+  /**
+   * Number of TigerTags on the tagged item — a filament spool, a resin bottle… as given
+   * by idType (low nibble of tagInfo).
+   * 0 = unknown, 1 = single tag, 2 = twin tag, … up to 15.
+   * @returns {number}
+   */
+  get tagCount() { return this.tagInfo & 0x0F; }
+
+  /**
+   * Which of those tags this one is, from 1 (high nibble of tagInfo).
+   * 0 = unknown.
+   * @returns {number}
+   */
+  get tagIndex() { return this.tagInfo >> 4; }
 
   /** Manufacturing timestamp as UTC Date. */
   get manufacturingDate() {
@@ -379,6 +400,7 @@ class TigerTag {
       color2R:          u8(36),
       color2G:          u8(37),
       color2B:          u8(38),
+      tagInfo:         u8(39),
       color3R:          u8(40),
       color3G:          u8(41),
       color3B:          u8(42),
@@ -431,6 +453,8 @@ class TigerTag {
    * @param {number}  [options.timestamp]  - Seconds since 2000-01-01 UTC. Defaults to now.
    * @param {string}  [options.customMessage='']
    * @param {number}  [options.tdRaw=0]
+   * @param {number}  [options.tagCount=0] - TigerTags on the item (0 = unknown, 0–15).
+   * @param {number}  [options.tagIndex=0] - Which tag this one is, from 1 (0 = unknown, 0–15).
    * @param {TigerTagDB} [options.db]
    * @returns {TigerTag}
    */
@@ -457,6 +481,8 @@ class TigerTag {
     timestamp        = null,
     customMessage    = '',
     tdRaw            = 0,
+    tagCount        = 0,
+    tagIndex        = 0,
     measureAvailable = null,
     db               = null,
   } = {}) {
@@ -505,6 +531,7 @@ class TigerTag {
       timestamp,
       customMessage,
       tdRaw,
+      tagInfo:         TigerTag._packTagInfo(tagCount, tagIndex),
       uid,
       _db: db,
     });
@@ -534,6 +561,7 @@ class TigerTag {
       timestamp:        ts,
       customMessage:    '',
       tdRaw:            0,
+      tagInfo:         0,
       uid,
     });
   }
@@ -590,7 +618,7 @@ class TigerTag {
     buf[o++] = this.color2R & 0xFF;
     buf[o++] = this.color2G & 0xFF;
     buf[o++] = this.color2B & 0xFF;
-    buf[o++] = 0x00;
+    buf[o++] = this.tagInfo & 0xFF;
 
     buf[o++] = this.color3R & 0xFF;
     buf[o++] = this.color3G & 0xFF;
@@ -631,8 +659,14 @@ class TigerTag {
    * Protected fields (idTigertag, idProduct, uid, signatureR, signatureS)
    * cannot be modified — they are covered by the ECDSA signature.
    *
+   * tagCount / tagIndex are accepted as shortcuts and re-encoded into
+   * tagInfo; the nibble that is not supplied keeps its current value.
+   * tagInfo is not covered by the signature, so patching it never
+   * invalidates a signed tag.
+   *
    * @param {object} kwargs - Field names (camelCase) and their new values.
    * @returns {TigerTag}
+   * @throws {RangeError} When tagCount / tagIndex is not an integer in 0–15.
    */
   patch(kwargs) {
     const protected_ = Object.keys(kwargs).filter((k) => _PROTECTED_FIELDS.has(k));
@@ -649,7 +683,38 @@ class TigerTag {
         + `Valid patchable fields: ${[..._PATCHABLE_FIELDS].sort().join(', ')}`,
       );
     }
-    return new TigerTag(Object.assign({}, this, kwargs));
+    const updates = Object.assign({}, kwargs);
+    if ('tagCount' in updates || 'tagIndex' in updates) {
+      const base  = 'tagInfo' in updates ? (updates.tagInfo & 0xFF) : this.tagInfo;
+      const count = 'tagCount' in updates ? updates.tagCount : base & 0x0F;
+      const index = 'tagIndex' in updates ? updates.tagIndex : base >> 4;
+      updates.tagInfo = TigerTag._packTagInfo(count, index);
+      delete updates.tagCount;
+      delete updates.tagIndex;
+    }
+    return new TigerTag(Object.assign({}, this, updates));
+  }
+
+  /**
+   * Pack a tag count and tag index into the tagInfo byte:
+   * (tagIndex << 4) | tagCount — the hex reads "index/count" (0x12 = tag 1 of 2).
+   *
+   * @param {number} tagCount - TigerTags on the item (0 = unknown, 0–15).
+   * @param {number} tagIndex - Which tag this one is, from 1 (0 = unknown, 0–15).
+   * @returns {number} u8 tagInfo value.
+   * @throws {RangeError} When either value is not an integer in 0–15
+   *   (it would not fit in its 4-bit nibble).
+   * @private
+   */
+  static _packTagInfo(tagCount, tagIndex) {
+    const count = tagCount || 0;
+    const index = tagIndex || 0;
+    for (const [name, v] of [['tagCount', count], ['tagIndex', index]]) {
+      if (!Number.isInteger(v) || v < 0 || v > 15) {
+        throw new RangeError(`${name} must be an integer in 0–15, got ${v}`);
+      }
+    }
+    return (index << 4) | count;
   }
 
   // ── Validation ──────────────────────────────────────────────────────────
@@ -673,6 +738,25 @@ class TigerTag {
     if (this.tdRaw !== 0 && !(this.tdRaw >= 10 && this.tdRaw <= 1000)) {
       warnings.push(
         `TD HueForge out of range: ${this.tdRaw} (valid: 10–1000 or 0=undefined)`,
+      );
+    }
+    const tagCount = this.tagCount;
+    const tagIndex = this.tagIndex;
+    if (!Number.isInteger(this.tagInfo) || this.tagInfo < 0 || this.tagInfo > 0xFF
+        || tagCount > 15 || tagIndex > 15) {
+      warnings.push(
+        `Tag index/count out of range: tag_info=${this.tagInfo} `
+        + `(count and index must each be 0–15, tag_info must be 0x00–0xFF)`,
+      );
+    }
+    if (tagCount > 0 && tagIndex > tagCount) {
+      warnings.push(
+        `Tag index (${tagIndex}) > tag count (${tagCount}) (valid index: 1–count or 0=unknown)`,
+      );
+    }
+    if (tagCount === 1 && tagIndex > 1) {
+      warnings.push(
+        `Single-tag item (count=1) but tag index is ${tagIndex} (expected 1 or 0=unknown)`,
       );
     }
     if (this.measure > 0 && this.measureAvailable > this.measure) {
@@ -949,16 +1033,24 @@ class TigerTag {
   }
 
   /**
-   * Download or update reference databases.
+   * Check for new reference tables now and reload this tag's database.
    *
-   * @param {string}  [dbPath] - Target folder. Defaults to the bundled database directory.
+   * Without dbPath: updates the data dir (see TigerTagDB.update()). With dbPath:
+   * downloads into that custom folder, which is then used exclusively.
+   *
+   * @param {string}  [dbPath] - Custom target folder. Default: the data dir.
    * @param {boolean} [force=false] - Re-download all files even if up to date.
    * @returns {Promise<string[]>} List of filenames that were downloaded/updated.
    */
   async syncDb(dbPath = null, force = false) {
-    const targetPath = dbPath || _BUNDLED_DB_PATH;
-    const updated = await syncDatabases(targetPath, { force, verbose: true });
-    this._db = new TigerTagDB({ dbPath: targetPath });
+    if (dbPath) {
+      const updated = await syncDatabases(dbPath, { force, verbose: true });
+      this._db = new TigerTagDB({ dbPath });
+      return updated;
+    }
+    const db = new TigerTagDB({ autoUpdate: false });
+    const updated = await db.update({ force });
+    this._db = db;
     return updated;
   }
 
@@ -1086,6 +1178,7 @@ class TigerTag {
       color_g3:           numColors >= 3 ? this.color3G : 0,
       color_b3:           numColors >= 3 ? this.color3B : 0,
       td_raw:             this.tdRaw,
+      tag_info:          this.tagInfo,
       message:            this.customMessage,
       measure_available:  this.measureAvailable,
       ...TigerTag._baseUnitFields(this.measure, this.measureAvailable, this.idUnit),
@@ -1139,6 +1232,7 @@ class TigerTag {
       bed_max:          'bedTempMax',
       timestamp:        'timestamp',
       td_raw:           'tdRaw',
+      tag_info:        'tagInfo',
       message:          'customMessage',
     };
     const kwargs = {};
@@ -1193,6 +1287,8 @@ class TigerTag {
       timestamp:    raw.timestamp   ?? null,
       customMessage: raw.message    ?? '',
       tdRaw:        raw.td_raw      ?? 0,
+      tagCount:    (raw.tag_info ?? 0) & 0x0F,
+      tagIndex:    (raw.tag_info ?? 0) >> 4,
       db,
     });
   }
@@ -1244,6 +1340,101 @@ class TigerTag {
   }
 
   /**
+   * Build a ready-to-burn TigerTag+ from one entry of the official catalogue
+   * (id_catalog.json). Pure and synchronous — see fromCatalog() to look the
+   * product up by ID.
+   *
+   * RFID_Data mapping (same as the cloud document, see fromCloudDoc()):
+   * data1 = idDiameter, data2/data3 = nozzle min/max, data4/data5 = dry temp/time,
+   * data6/data7 = bed min/max; id_aspect2 null → 0 (none); missing values → 0.
+   * Colours 2 and 3 come from RFID_Data color_r2…b3 when present, otherwise from
+   * color_info.colors[1] / [2] ("#RRGGBBAA").
+   *
+   * @param {object} entry - Catalogue entry ({ id, RFID_Data, title, brand, color_info, … }).
+   * @param {object} [options]
+   * @param {Buffer} [options.uid]          - 7-byte chip UID.
+   * @param {number} [options.tagCount=0]   - TigerTags on the item (twin tag: 2).
+   * @param {number} [options.tagIndex=0]   - Which tag this one is, from 1.
+   * @param {number} [options.timestamp]    - Seconds since 2000-01-01 UTC (default: now). Use the
+   *                                          same value on every tag of a twin tag.
+   * @param {TigerTagDB} [options.db]
+   * @returns {TigerTag} A TigerTag+ (idTigertag = ID_TIGERTAG_PLUS, idProduct = entry.id).
+   * @throws {Error} When the entry has no RFID_Data (it cannot be written to a tag).
+   */
+  static fromCatalogEntry(entry, {
+    uid = null, tagCount = 0, tagIndex = 0, timestamp = null, db = null,
+  } = {}) {
+    const r = entry && entry.RFID_Data;
+    if (!r) {
+      throw new Error(
+        `Catalogue product ${entry && entry.id} ("${(entry && entry.title) || '?'}") has no RFID_Data `
+        + '— it cannot be written to a tag.',
+      );
+    }
+    const n = (v) => (v == null ? 0 : Number(v));
+    const hex = (h) => {
+      const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(h || '');
+      return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [0, 0, 0];
+    };
+    const colors = (entry.color_info && entry.color_info.colors) || [];
+    const c2 = r.color_r2 != null ? [n(r.color_r2), n(r.color_g2), n(r.color_b2)] : colors[1] ? hex(colors[1]) : [0, 0, 0];
+    const c3 = r.color_r3 != null ? [n(r.color_r3), n(r.color_g3), n(r.color_b3)] : colors[2] ? hex(colors[2]) : [0, 0, 0];
+    return TigerTag.create({
+      productId:     Number(entry.id),
+      uid,
+      idMaterial:    n(r.id_material),
+      idAspect1:     n(r.id_aspect1),
+      idAspect2:     n(r.id_aspect2),
+      idType:        n(r.id_type),
+      idDiameter:    n(r.data1),
+      idBrand:       n(r.id_brand),
+      color1R:       n(r.color_r),
+      color1G:       n(r.color_g),
+      color1B:       n(r.color_b),
+      color1A:       r.color_a == null ? 255 : n(r.color_a),
+      color2R: c2[0], color2G: c2[1], color2B: c2[2],
+      color3R: c3[0], color3G: c3[1], color3B: c3[2],
+      measure:       n(r.measure),
+      idUnit:        n(r.id_unit),
+      nozzleTempMin: n(r.data2),
+      nozzleTempMax: n(r.data3),
+      dryTemp:       n(r.data4),
+      dryTime:       n(r.data5),
+      bedTempMin:    n(r.data6),
+      bedTempMax:    n(r.data7),
+      timestamp,
+      tagCount,
+      tagIndex,
+      db,
+    });
+  }
+
+  /**
+   * Build a ready-to-burn TigerTag+ from a product ID of the official catalogue.
+   * The catalogue is downloaded on first use and cached on disk (see loadCatalog()).
+   * Use catalogEntry(productId) for the display metadata (title, brand, sku,
+   * barcode, img_src).
+   *
+   * @param {number} productId - TigerTag+ product ID.
+   * @param {object} [options] - fromCatalogEntry() options, plus:
+   * @param {Map<number, object>} [options.catalog] - Already loaded catalogue (otherwise loaded with
+   *                                                  the loadCatalog() options url / cacheDir / maxAge / force).
+   * @returns {Promise<TigerTag>}
+   * @throws {Error} When the ID is not in the catalogue, the product has no RFID_Data, or the
+   *                 catalogue cannot be loaded (offline with no cache).
+   */
+  static async fromCatalog(productId, options = {}) {
+    const { loadCatalog } = require('./catalog');
+    const { catalog: given, uid, tagCount, tagIndex, timestamp, db, ...loadOpts } = options;
+    const catalog = given || await loadCatalog(loadOpts);
+    const entry = catalog.get(Number(productId));
+    if (!entry) {
+      throw new Error(`Product ID ${productId} is not in the TigerTag catalogue (${catalog.size} products).`);
+    }
+    return TigerTag.fromCatalogEntry(entry, { uid, tagCount, tagIndex, timestamp, db });
+  }
+
+  /**
    * Apply a surgical patch using snake_case keys (toRawDict format).
    * Only the supplied keys are changed — all other fields are preserved.
    *
@@ -1276,7 +1467,7 @@ class TigerTag {
     return {
       sdk:      'tigertag-sdk-js',
       sdk_mode: 'offline',
-      protocol: 'TigerTag Open Source v2.1',
+      protocol: 'TigerTag Open Source v2.2',
       chip:     'NTAG213/215/216',
       uid:      this.uidHex,
       version: {
@@ -1369,6 +1560,8 @@ class TigerTag {
       },
       manufacturing_date:  this.manufacturingDate.toISOString(),
       twin_tag_pairing_id: this.timestamp,
+      tag_count:          this.tagCount || null,
+      tag_index:          this.tagIndex || null,
       custom_message:      this.customMessage,
       authentication: {
         signed:      this.isSigned,
@@ -1465,6 +1658,11 @@ class TigerTag {
     }
 
     if (this.tdRaw !== 0) parts.push(`HueForge TD: ${this.tdValue.toFixed(1)}.`);
+    if (this.tagInfo !== 0) {
+      // What the item is comes from idType (Filament, Resin, …); unknown → "item"
+      const typeLabel = ((_db.type(this.idType) || {}).label || '').trim().toLowerCase();
+      parts.push(`Tag ${this.tagIndex || '?'} of ${this.tagCount || '?'} on this ${typeLabel || 'item'}.`);
+    }
 
     const dateStr = this.manufacturingDate.toISOString().slice(0, 10);
     parts.push(`Manufactured: ${dateStr}.`);
@@ -1509,7 +1707,7 @@ class TigerTag {
     const ul    = TigerTagDB.label(_db.unit(this.idUnit));
     const sig   = sigResult
       ? String(sigResult)
-      : (this.isSigned ? 'signed ✓' : 'not signed');
+      : (this.isSigned ? 'signed (not verified)' : 'not signed');
 
     const recNote = (kMin, kMax, suffix = '°C') =>
       rec[kMin] != null ? `  (DB: ${rec[kMin]}–${rec[kMax]}${suffix})` : '';
@@ -1554,6 +1752,7 @@ class TigerTag {
       + `├─ Traceability ────────────────────────────────────────\n`
       + `│  Manufactured ${this.manufacturingDate.toISOString().replace('T', ' ').slice(0, 16)} UTC\n`
       + `│  Twin tag ID  ${this.timestamp}\n`
+      + `│  Tag          ${this.tagIndex || '?'} of ${this.tagCount || '?'}${this.tagInfo === 0 ? ' (unknown)' : ''}\n`
       + `│  Message      ${JSON.stringify(this.customMessage)}\n`
       + `├─ Signature ───────────────────────────────────────────\n`
       + `│  ECDSA        ${sig}\n`

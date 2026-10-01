@@ -25,24 +25,33 @@ const fs   = require('fs');
 const path = require('path');
 
 const { TigerTag, TigerTagDB, SignatureResult, syncDatabases } = require('../src/index');
-const { _BUNDLED_DB_PATH } = require('../src/db');
 
 const VERSION = require('../package.json').version;
 
 const HELP = `
 Usage: tigertag [dump.bin] [options]
+       tigertag update [--force] [--catalog] [--data-dir PATH | --db PATH]
 
 Parse, verify, and export TigerTag RFID chip dumps.
 
 Arguments:
   dump.bin              Binary .bin file to parse
 
+Commands:
+  update                Check for new reference tables now and download the changed ones
+                        (into the data dir, or into --db PATH)
+
 Options:
-  --db <path>           Database folder (default: bundled database)
+  --db <path>           Custom database folder, used exclusively (no fallback)
+  --data-dir <path>     Folder for downloaded reference data (default: TIGERTAG_DATA_DIR
+                        or the per-user cache folder)
+  --offline             No network call at all (same as TIGERTAG_OFFLINE=1)
+  --force               update: re-download every table
+  --catalog             update: also check for a new product catalogue
   --json                Output as JSON
   --raw                 Raw protocol fields, no DB lookup
-  --no-sync             Do not auto-download databases
-  --sync-only           Update databases and exit
+  --no-sync             Do not run the automatic daily check
+  --sync-only           Same as "update"
   --version             Show version
   -h, --help            Show this help
 
@@ -54,39 +63,56 @@ Dump formats:
 Examples:
   tigertag dump.bin              Parse + human-readable output
   tigertag dump.bin --json       Output as JSON
-  tigertag dump.bin --raw        Raw protocol fields, no DB lookup
-  tigertag --sync-only           Update reference databases and exit
+  tigertag dump.bin --offline    Parse without any network call
+  tigertag update                Update the reference tables now
+  tigertag update --catalog      Same, plus the product catalogue
 
 Spec: https://github.com/TigerTag-Project/TigerTag-RFID-Guide
 `.trim();
 
 function parseArgs(argv) {
-  const args = { dump: null, db: null, json: false, raw: false, noSync: false, syncOnly: false };
+  const args = {
+    dump: null, db: null, dataDir: null, json: false, raw: false, noSync: false,
+    update: false, force: false, catalog: false, offline: false,
+  };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a === '--json')         args.json     = true;
-    else if (a === '--raw')     args.raw      = true;
-    else if (a === '--no-sync') args.noSync   = true;
-    else if (a === '--sync-only') args.syncOnly = true;
+    if (a === '--json')           args.json     = true;
+    else if (a === '--raw')       args.raw      = true;
+    else if (a === '--no-sync')   args.noSync   = true;
+    else if (a === '--sync-only' || (a === 'update' && !args.dump && !args.update)) args.update = true;
+    else if (a === '--force')     args.force    = true;
+    else if (a === '--catalog')   args.catalog  = true;
+    else if (a === '--offline')   args.offline  = true;
     else if (a === '--version') { console.log(`tigertag ${VERSION}`); process.exit(0); }
     else if (a === '-h' || a === '--help') { console.log(HELP); process.exit(0); }
-    else if (a === '--db')      args.db = argv[++i];
-    else if (!a.startsWith('-')) args.dump = a;
+    else if (a === '--db')        args.db = argv[++i];
+    else if (a === '--data-dir')  args.dataDir = argv[++i];
+    else if (!a.startsWith('-'))  args.dump = a;
   }
   return args;
 }
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const dbPath = args.db ? path.resolve(args.db) : _BUNDLED_DB_PATH;
+  if (args.offline) process.env.TIGERTAG_OFFLINE = '1';   // no network call anywhere in this process
+  const dbPath = args.db ? path.resolve(args.db) : undefined;
+  const dataDir = args.dataDir ? path.resolve(args.dataDir) : undefined;
 
-  if (args.syncOnly) {
+  if (args.update) {
     try {
-      const updated = await syncDatabases(dbPath, { verbose: true });
+      let updated;
+      if (dbPath) {
+        updated = await syncDatabases(dbPath, { force: args.force, verbose: true });
+      } else {
+        const db = new TigerTagDB({ dataDir, offline: args.offline || undefined, autoUpdate: false, verbose: true });
+        updated = await db.update({ force: args.force, catalog: args.catalog });
+        console.log(`Data dir: ${db.info().dataDir}`);
+      }
       if (updated.length > 0) {
         console.log(`\nUpdated ${updated.length} file(s): ${updated.join(', ')}`);
       } else {
-        console.log('\nAll databases already up to date.');
+        console.log('\nAll reference data already up to date.');
       }
     } catch (err) {
       process.stderr.write(`Error: ${err.message}\n`);
@@ -120,12 +146,24 @@ async function main() {
     process.stderr.write(`Warning: ${w}\n`);
   }
 
+  let db;
+  try {
+    db = new TigerTagDB({
+      dbPath, dataDir,
+      offline: args.offline || undefined,
+      autoUpdate: !args.noSync && !args.raw,
+    });
+  } catch (err) {
+    process.stderr.write(`Error: ${err.message}\n`);
+    process.exit(1);
+  }
+  tag._db = db;   // every lookup (toRawDict / toDict / pretty) uses this database
+
   if (args.raw) {
     console.log(JSON.stringify(tag.toRawDict(), null, 2));
     return;
   }
 
-  const db = new TigerTagDB({ dbPath });
   const sigResult = tag.isSigned
     ? tag.verify(db)
     : new SignatureResult(SignatureResult.UNSIGNED);

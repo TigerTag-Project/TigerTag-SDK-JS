@@ -65,7 +65,7 @@ class SignatureResult {
   }
 
   toString() {
-    const base = SignatureResult._ICONS[this.status] || `? ${this.status}`;
+    const base = SignatureResult._LABELS[this.status] || `? ${this.status}`;
     return this.detail ? `${base}  ${this.detail}` : base;
   }
 
@@ -85,13 +85,13 @@ SignatureResult.NO_CRYPTO = 'no_crypto';
 SignatureResult.NO_KEY    = 'no_key';
 SignatureResult.NO_UID    = 'no_uid';
 
-SignatureResult._ICONS = {
-  valid:     '✅ VALID',
-  invalid:   '❌ INVALID',
-  unsigned:  '⬜ NOT SIGNED',
-  no_crypto: '⚠️  crypto not available',
-  no_key:    '⚠️  public key not found in id_version.json',
-  no_uid:    '⚠️  UID unavailable — provide a full 180-byte chip dump',
+SignatureResult._LABELS = {
+  valid:     'VALID',
+  invalid:   'INVALID',
+  unsigned:  'NOT SIGNED',
+  no_crypto: 'NO CRYPTO — crypto not available',
+  no_key:    'NO PUBLIC KEY — public key not found in id_version.json',
+  no_uid:    'NO UID — UID unavailable, provide a full 180-byte chip dump',
 };
 
 /**
