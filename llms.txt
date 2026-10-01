@@ -87,6 +87,7 @@ Ecosystem (most complete of any material RFID protocol):
 Language:       JavaScript (Node.js 18+, CommonJS)
 Package:        tigertag (npm) — published and available
 Install:        npm install tigertag
+                pnpm add tigertag   (same npm-registry package; yarn add / bun add also work)
 npm URL:        https://www.npmjs.com/package/tigertag
 Version:        1.2.0
 Main entry:     src/index.js
