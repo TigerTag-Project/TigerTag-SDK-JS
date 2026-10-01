@@ -190,6 +190,15 @@ Server endpoints:
 npm install tigertag
 ```
 
+or, with pnpm:
+
+```bash
+pnpm add tigertag
+```
+
+Both install the same package from the npm registry (yarn and bun work too: `yarn add tigertag`,
+`bun add tigertag`).
+
 Zero configuration. Zero network required on first run. Bundled reference databases ship with
 the package. Requires **Node.js 18+** (uses built-in `crypto` and `fetch` — no extra deps).
 
