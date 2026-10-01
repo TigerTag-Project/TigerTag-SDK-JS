@@ -3,6 +3,177 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.2.0] — 2026-09-30
+
+### Added
+- **Unified playground**: `tools/playground.html` is now one page, byte-for-byte identical in the
+  JavaScript and Python SDKs. Each `tools/server.*` implements the same server contract
+  (`docs/playground-api.md`): `GET /api/version` (now `{ version, sdk, label, repo, install,
+  server, style }` — the page takes its SDK names, links and the `create()` code style from it),
+  `POST /api/parse` / `/api/build` (snake_case `create()` fields, `measure_available`) /
+  `/api/diff`, `GET /api/catalog/info` / `<id>`, `POST /api/catalog/refresh`, `GET /api/db/info`,
+  `POST /api/db/update`, `GET /api/db/table/<file>`, `GET /api/nfc/events` (Server-Sent Events,
+  chips already present replayed on connect), `POST /api/nfc/read` / `burn` / `plan`. The page
+  talks to the readers through SSE + HTTP on both servers (the JS server keeps its WebSocket transport for older pages; `TIGERTAG_PLAYGROUND_NO_NFC=1` starts it without readers).
+  `scripts/check_playground_sync.js` fails when the two copies differ (the local checkout next to
+  this one, else GitHub `main`); the test suite runs it and skips it when neither is reachable.
+  From the other SDK's page: gradient colour preview, read-only manufacturing date, refusal of an available quantity above the initial one, Studio Manager download buttons, error toasts, tables loaded from the server (`/api/db/table`).
+- **Tag index / tag count** (protocol v2.2). Page 0x0D byte 3 (payload offset +39),
+  previously reserved padding, is now parsed and written as `tagInfo` (u8):
+  high nibble = tag index, which of the item's TigerTags this one is, from 1 (0 = unknown);
+  low nibble = tag count, how many TigerTags the item carries — a filament spool, a resin
+  bottle…, as given by idType (0 = unknown, 1 = single tag,
+  2 = twin tag, … 15). The hex reads "index/count": `0x11` single tag, `0x12` / `0x22`
+  twin tag, tag 1 / 2 of 2, `0x02` twin tag with index unknown, `0x00` unknown.
+  - `tag.tagInfo`, and read-only getters `tag.tagCount` / `tag.tagIndex`.
+  - `TigerTag.create({ tagCount, tagIndex })` (default `0` = unknown); `asInit()` writes `0x00`.
+    Values outside 0–15 throw `RangeError`.
+  - `patch()` accepts `tagInfo`, `tagCount` and `tagIndex`; `patchFromRawDict()` /
+    `fromRawDict()` accept `tag_info`.
+  - `validate()` warns when tag index / count are outside 0–15, when index > count (count > 0),
+    and when count is 1 with index > 1.
+  - `toRawDict()` gains `tag_info`; `toDict()` gains `tag_count` / `tag_index`
+    (`null` when unknown) next to `twin_tag_pairing_id`; `pretty()` prints a `Tag` line
+    (`Tag          1 of 2`) after `Twin tag ID`; `describe()` adds "Tag 1 of 2 on this filament."
+    when known (the idType label, lowercased; "item" when the type is unknown).
+  - `tagInfo` is not covered by the ECDSA signature — setting it never invalidates a signed tag.
+
+- Playground: "Tag index" / "Tag count" inputs (0–15, 0 = unknown) passed to
+  `TigerTag.create()` via `/api/build`; the client-side encoder / decoder handle byte +39;
+  the decoded view shows a `Tag` row after `Twin tag ID` ("1 of 2", "? of 2", "unknown");
+  the raw hex view labels page 13 byte 3 as the tag index / count (e.g. `(0x12) tag 1 of 2`);
+  imported `.bin` files and scanned chips fill the two inputs; presets and API loads reset them to 0.
+- Playground server: `/api/parse` and the `card:detected` WebSocket event include
+  `validate` (the `validate()` warnings), shown in a new "Validation" card.
+- Playground: an info bubble on "Tag index" and "Tag count" explains both values;
+  the repository list points to Tiger-Scale-V3 and adds TigerSpool-RFID, TigerPOD,
+  TigerSystem-Docs and TigerTag_Firebase_Integration.
+- Playground ecosystem panel: photo cards for Tiger Scale V3, TigerSpool, TigerPOD Mini
+  and the mobile app.
+- Playground: TigerTag favicon (`assets/favicon.svg`, with `assets/apple-touch-icon.png`).
+- Playground SDK Input panel: `create()` | `HEX` | `Pages` tabs. `HEX` shows exactly what
+  Burn writes (144 bytes, pages 0x04–0x27, uppercase); `Pages` lists them page by page in
+  write order with the Raw Read annotations (page 0x0D byte 3 → `tag 1 of 2`). Copy copies
+  the active tab (`Pages` → one TSV line per page). The "→ Burn result" section is kept.
+- Playground twin tag mode: when two or more readers hold a chip (sorted by name → #1, #2, …),
+  Tag count is locked to the number of chips and Tag index to "auto", with a note naming
+  each reader's tag ("#1 <reader> = tag 1 of 2"). Generate builds one payload per reader — same
+  data, same Timestamp (computed once in the page and passed to `create()`), tag index 1…n
+  (`0x12`, `0x22`) — and SDK Input shows
+  one section per reader. SDK Output gets `#1` / `#2` buttons to switch between the chips.
+  Burn asks for confirmation listing each reader, UID and tag, then writes each reader's own
+  payload; the "x/y written" counter and the burn result aggregate across the writes.
+  Loading a `.bin` or a scanned chip clears the twin plan.
+- Playground server: `burn:write` accepts an optional `reader` field (a reader id / name, or an
+  array of them) to write to those readers only; without it every reader holding a chip is
+  written, as before (`tools/burn_targets.js`).
+- Playground "Chips on the readers" card: for the chips currently on the readers, checks they
+  belong to the same item (same Timestamp), carry identical data apart from byte +39, and that
+  the tag numbering is complete (e.g. "Numbering complete: 1/2 + 2/2", "tag 2/2 not on a reader",
+  or "Tag index / count unknown" for tags written before protocol v2.2). The server replays the
+  last chip read on each reader to a newly connected page.
+
+- Playground Read / Burn modes: a header switch "Read" (default) | "Burn".
+  Read shows only what the readers read (or an imported `.bin`), under a blue "Read result"
+  banner naming the reader and UID (or the file), with the "Chips on the readers" card; Burn
+  is disabled and twin tag locking is off. Burn shows only what Burn will write, under an
+  orange "Burn preview — not written yet" banner listing the target readers (and each one's
+  tag i of n); a chip placed on a reader never replaces the preview, and Burn writes the
+  stored preview, never the last payload read. Generate switches to Burn, Import .bin to Read;
+  each mode keeps its last view. In Read mode, removing the chip whose result is shown switches
+  to another chip still on a reader, or clears the view (an imported `.bin` stays). Reader
+  events start only after the reference database has loaded.
+
+- Playground burn never writes a signature and never leaves a stale one: `burn:write` always
+  writes pages 0x04–0x27 (36 pages) — the tag data on 0x04–0x17, then `00 00 00 00` on every
+  signature page 0x18–0x27, whatever the payload (TigerTag, TigerTag+, or data read back from a
+  signed chip). Only a certified manufacturer can issue a signature, and a copied one would be
+  invalid since it covers the chip UID; the playgrounds only read signatures to verify them.
+  Pages 0–3 and 0x28+ are never touched. The page plan lives in `tools/burn_plan.js`
+  (unit-tested; accepts 80 or 144 bytes); `burn:result` reports `pagesWritten: 36` and
+  `signatureDropped` when the payload carried a signature. The playground sends the full
+  144-byte image, the HEX / Pages tabs show all 36 pages with the zeroed signature, and the
+  caption and confirmation say so ("the signature read from the chip is not copied" when the
+  data came from a signed chip).
+
+- No emoji anywhere: `SignatureResult` labels are plain words (`VALID`, `INVALID`, `NOT SIGNED`,
+  `NO PUBLIC KEY — …`, `NO UID — …`, `NO CRYPTO — …`), `pretty()` prints `signed (not verified)`
+  instead of a check mark, and the scripts print `OK` / `FAILED`. The playground uses small inline
+  SVG icons (read, burn, raw read, upload, download, play, check, x, warning, cloud, hourglass,
+  close, refresh, external link…) in buttons, banners, tabs, badges and cards, and plain words in
+  tooltips, confirmation dialogs and console logs. The README, llms.txt and the SVG badges no
+  longer use emoji either.
+
+- **TigerTag+ from the official catalogue** (`src/catalog.js`): `TigerTag.fromCatalog(productId,
+  { uid, tagCount, tagIndex, timestamp, db, catalog })` builds a ready-to-burn TigerTag+ from
+  `id_catalog.json` (14 000+ products); `TigerTag.fromCatalogEntry(entry, options)` does it from an
+  entry; `catalogEntry(productId)` returns the display metadata (title, brand, SKU, barcode, image).
+  RFID_Data mapping: `data1` = diameter, `data2`/`data3` = nozzle min/max, `data4`/`data5` = dry
+  temp/time, `data6`/`data7` = bed min/max, `id_aspect2` null → 0, colours 2/3 from `color_r2…b3`
+  or `color_info.colors`. The catalogue (~12 MB) is not bundled: `loadCatalog({ url, cacheDir,
+  maxAge, force })` downloads it on first use and caches it in the user cache folder (override:
+  `TIGERTAG_CACHE_DIR`), checks for a new version once the copy is older than 1 day (`maxAge`), falls back to the cached copy when offline and fails with a clear error
+  when there is none. It changes every day: `refreshCatalog()` checks for a new version now
+  (conditional download with ETag / Last-Modified — an unchanged catalogue answers 304) and
+  `catalogInfo()` reports `downloaded`, `count`, `fetchedAt`, `checkedAt`, `url` and `etag`.
+- Playground: one "Load a TigerTag+ product" block — a single Product ID field, a source toggle
+  "Offline · Catalogue" (bundled / cached catalogue, no internet) | "Online · API" (live
+  api.tigertag.io data), remembered in the browser, and one Load button; both sources fill the
+  form, switch to Burn and build the preview (twin tag with two readers), share one message area
+  and suggest the other source when a product is not found / the API is unreachable.
+- Playground: decluttered — on screen only short labels, values, buttons and status words
+  ("Catalogue · 14 164 · 1 oct.", "Tables · 25 sept.", "Burn preview · not written · twin tag ·
+  2 chips"); every explanation moved into info bubbles (TigerTag+ intro, data sources, catalogue
+  and tables details, Read / Burn banners, HEX / Pages captions, "Chips on the readers" checks,
+  field hints, twin tag readers, Init, demo presets). Bubbles are placed to stay inside their
+  panel and the viewport.
+- Playground: "Load from catalogue" in the TigerTag+ tab — a product ID fills the whole form from
+  the catalogue, shows title, brand, SKU and image, switches to Burn and builds the preview (twin
+  tag with two readers); "Update catalogue" downloads the latest version; a status line shows
+  "Catalogue: 14 164 products · updated <date>" or "not downloaded yet". Server endpoints
+  `GET /api/catalog/<id>`, `GET /api/catalog/info`, `POST /api/catalog/refresh`.
+
+### Fixed
+- Playground: Generate now passes an explicit Timestamp to `create()`, so the decoded view
+  shows the real Twin tag ID and manufacturing date instead of `null` / 2000-01-01.
+- Playground: the `create()` call shown in SDK Input is the exact call sent to `/api/build`
+  (inactive color 2 / 3 slots are no longer sent while hidden from the displayed call), so
+  the text shown always reproduces the bytes.
+
+- **Reference data always available offline, kept fresh automatically**: the product catalogue
+  ships in the package as `database/id_catalog.json.gz` (~1 MB, gunzipped at load; package
+  1.1 MB) next to the 7 tables. `TigerTagDB` picks, per table, the newest of the downloaded copy
+  in the data dir (`dataDir`, `TIGERTAG_DATA_DIR`, default: the per-user cache folder shared
+  with the catalogue) and the bundled copy. `await TigerTagDB.open()` / the constructor's
+  background check (`db.ready`) look for new tables at most once a day (one request to the
+  TigerTag API, GitHub mirror as fallback, only the changed tables downloaded, ~5 s timeout,
+  never throws). `offline: true` / `TIGERTAG_OFFLINE=1` / CLI `--offline` mean zero network
+  calls; `autoUpdate: false` disables only the automatic check (`autoSync` is a deprecated
+  alias). `await db.update({ force, catalog })` forces it and returns the changed files;
+  `db.info()` reports where every table comes from (custom / downloaded / bundled), the last
+  check, the data dir, the offline flag and the catalogue. CLI: `tigertag update [--force]
+  [--catalog] [--data-dir PATH | --db PATH]`. The catalogue loader shares the data dir, the
+  offline switch and the bundled `.gz` fallback, so `TigerTag.fromCatalog()` works offline.
+- Playground: "Update reference tables" button with a status line ("Reference tables: 7 (n
+  downloaded, n bundled) · data <date> · checked <date>"), server endpoints `GET /api/db/info`
+  and `POST /api/db/update`; the catalogue status line names the bundled copy.
+- Playground: Read mode shows no SDK Input panel and Burn mode no SDK Output panel at all (not
+  even the fold rail) — three columns instead of four; switching mode opens the visible panel.
+- Release pipeline: `scripts/sync_databases.js` also refreshes `database/id_catalog.json.gz`
+  (only when its content changed); the daily `sync-databases.yml` commits it and `publish.yml`
+  runs the sync (then the tests) before `npm publish`, so every release ships the day's data.
+
+### Changed
+- Protocol version is now **TigerTag Open Source v2.2** (backward compatible: tags written
+  before v2.2 read `0x00` = unknown).
+- `toBytes()` writes `tagInfo` at +39 instead of a hard-coded `0x00`.
+- **Behaviour change**: a custom `dbPath` is used exclusively — a missing table file now throws
+  a clear error instead of silently falling back to the bundled copy; `new TigerTagDB()` now
+  checks for updates once a day in the background (into the data dir — never into the package
+  folder; disable with `autoUpdate: false` or `offline: true`); `db.sync()` is an alias of
+  `db.update()`, and `tag.syncDb()` / `tigertag --sync-only` without a folder update the data dir
+  instead of rewriting the bundled `database/` folder.
+
 ## [1.1.0] — 2026-07-10
 
 ### Changed
@@ -73,7 +244,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Playground: **Available qty auto-link** — the Available Qty field automatically mirrors Initial
   Qty until the user manually edits it. Link is restored on preset load, API fetch, or NFC scan.
   Removes the old "(0 = same as initial)" convention.
-- Playground: **Raw Hex Reader** (`🔬 Raw Read` button) — reads all 144 bytes (pages 4–39) from
+- Playground: **Raw Hex Reader** (`Raw Read` button) — reads all 144 bytes (pages 4–39) from
   every connected reader that holds a card and displays them in a structured table: page number,
   byte offset, four individual hex bytes (B0–B3), big-endian u32 decimal, and field label. The
   signature pages (24–39) are visually dimmed and preceded by a separator row.
@@ -82,7 +253,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
     displayed side-by-side (flex row). Panels use the same rail UX as SDK Input / Output.
   - **Copy hex** button per panel — copies one line per page (`0x04 B0 B1 B2 B3`) to the clipboard.
     Includes page hex prefix on each line for direct cross-reference with NFC documentation.
-    Button shows `✓ Copied!` (green, 1.5 s) after a successful copy so the user gets clear feedback.
+    Button shows `Copied` (green, 1.5 s) after a successful copy so the user gets clear feedback.
   - **Annotated Field column** — each field cell now shows decoded values inline:
     `(value) field_name · (value) field_name · …`. Values are read directly from the raw bytes
     (no extra server round-trip). customMessage pages show the decoded ASCII chars `("azer")`.
@@ -121,7 +292,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   Works for TigerTag+ chips only (filament / resin types). Cache-busted with
   `v=<timestamp>` on each call. `toRawDict()` and `toDict()` now include an
   `img` field exposing all URLs.
-- Playground: **Burn** button (`🔥 Burn`) — writes the generated payload to every
+- Playground: **Burn** button (`Burn`) — writes the generated payload to every
   connected ACR122U / PC-SC reader that currently holds a card. Writes 20 pages
   (pages 4–23, 80 bytes) sequentially via `reader.write()`. Result reported per
   reader via WS (`burn:result`) with success/error detail; `burn:done` signals

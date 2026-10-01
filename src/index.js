@@ -24,7 +24,7 @@
  * tigertag — JavaScript SDK for TigerTag RFID material identification.
  *
  * Spec    : https://github.com/TigerTag-Project/TigerTag-RFID-Guide
- * Protocol: TigerTag Open Source v2.1
+ * Protocol: TigerTag Open Source v2.2
  *
  * Quick start:
  *   const { TigerTag } = require('tigertag');
@@ -37,6 +37,8 @@
  *   console.log(tag.toRawDict());   // raw protocol fields
  *   console.log(tag.toDict());      // enriched with labels, hex colors, dates
  *   console.log(tag.verify());      // ECDSA signature result
+ *
+ *   const plus = await TigerTag.fromCatalog(3527039449);  // TigerTag+ from the catalogue
  */
 
 const {
@@ -54,7 +56,11 @@ const {
 } = require('./tag');
 
 const { TigerTagDB, syncDatabases }  = require('./db');
+const { defaultDataDir } = require('./datadir');
 const { SignatureResult, ecdsaRawToDer } = require('./signature');
+const {
+  CATALOG_URL, loadCatalog, refreshCatalog, catalogInfo, catalogEntry, defaultCacheDir: catalogCacheDir,
+} = require('./catalog');
 
 module.exports = {
   TigerTag,
@@ -62,7 +68,14 @@ module.exports = {
   SignatureResult,
   ApiDiff,
   syncDatabases,
+  defaultDataDir,
   ecdsaRawToDer,
+  loadCatalog,
+  refreshCatalog,
+  catalogInfo,
+  catalogEntry,
+  catalogCacheDir,
+  CATALOG_URL,
   CHIP_DUMP_LEN,
   FULL_DATA_LEN,
   MIN_DATA_LEN,

@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TigerTag · Open Source RFID Protocol Playground</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -45,6 +47,32 @@
     .hbtn.accent { background: var(--accent); border-color: var(--accent); }
     .hbtn.accent:hover { background: var(--accent-dark); }
     .hbtn:disabled { opacity: .35; cursor: not-allowed; pointer-events: none; }
+
+    /* ── Product source toggle (Offline · Catalogue | Online · API) ─────────── */
+    .src-seg { display:flex; border:1px solid var(--border); border-radius:7px; overflow:hidden; background:var(--bg) }
+    .src-seg button { flex:1; display:flex; align-items:center; justify-content:center; gap:5px; padding:5px 6px; font-size:11.5px; font-weight:600; color:var(--muted); background:transparent; border:none; cursor:pointer; transition:background .15s,color .15s; white-space:nowrap }
+    .src-seg button + button { border-left:1px solid var(--border) }
+    .src-seg button:hover { color:var(--text) }
+    .src-seg button.on { background:var(--card); color:var(--accent); box-shadow:inset 0 -2px 0 var(--accent) }
+
+    #nfc-toast {
+      position: fixed; right: 16px; bottom: 16px; z-index: 1000; max-width: min(420px, calc(100vw - 32px));
+      background: #1b1d22; color: #f3f4f6; border-radius: 8px; padding: 10px 14px; font-size: 12px;
+      box-shadow: 0 6px 20px rgba(0,0,0,.25); display: none; border-left: 3px solid var(--err);
+    }
+    #nfc-toast.ok { border-left-color: var(--ok); }
+
+    /* ── Read / Burn mode switch + banner ───────────────────────────────────── */
+    #mode-switch { display:flex; border:1px solid rgba(255,255,255,.25); border-radius:8px; overflow:hidden; flex-shrink:0 }
+    #mode-switch button { background:transparent; border:none; color:rgba(255,255,255,.65); padding:6px 14px; font-size:13px; font-weight:600; cursor:pointer; transition:background .15s,color .15s }
+    #mode-switch button:hover { color:#fff; background:rgba(255,255,255,.1) }
+    #mode-switch button.on[data-mode="read"] { background:#2563EB; color:#fff }
+    #mode-switch button.on[data-mode="burn"] { background:var(--accent); color:#fff }
+    .mode-banner { grid-column:1 / -1; display:flex; align-items:center; gap:12px; padding:12px 16px; border-radius:10px; border:1px solid; font-size:13px; line-height:1.5 }
+    .mode-banner b { font-size:14px }
+    .mode-banner.read { background:#EFF6FF; border-color:#93C5FD; color:#1E3A8A }
+    .mode-banner.burn { background:#FFF7ED; border-color:#FDBA74; color:#7C2D12 }
+    .mode-banner .ico { font-size:22px; line-height:1 }
     input[type=file] { display: none; }
 
     /* ── NFC reader status bar ──────────────────────────────────────────────── */
@@ -76,13 +104,25 @@
 
     /* ── Layout ─────────────────────────────────────────────────────────── */
     main {
-      display: grid; grid-template-columns: 380px 1fr 400px 460px; grid-template-rows: 1fr;
+      display: grid; grid-template-columns: 360px minmax(300px, 1fr) minmax(260px, 400px) minmax(300px, 460px); grid-template-rows: 1fr;
       overflow: hidden; height: calc(100vh - 48px);
       transition: grid-template-columns .22s ease;
     }
-    main.sdk-input-closed                     { grid-template-columns: 380px 1fr 32px 460px; }
-    main.sdk-closed                           { grid-template-columns: 380px 1fr 400px 32px; }
-    main.sdk-input-closed.sdk-closed          { grid-template-columns: 380px 1fr 32px 32px; }
+    main.sdk-input-closed                     { grid-template-columns: 360px minmax(300px, 1fr) 32px minmax(300px, 460px); }
+    main.sdk-closed                           { grid-template-columns: 360px minmax(300px, 1fr) minmax(260px, 400px) 32px; }
+    main.sdk-input-closed.sdk-closed          { grid-template-columns: 360px minmax(300px, 1fr) 32px 32px; }
+    /* Read mode: no SDK Input panel at all (not even its rail) — form | result | SDK Output */
+    main.mode-read #sdk-left { display: none; }
+    main.mode-read,
+    main.mode-read.sdk-input-closed           { grid-template-columns: 360px minmax(300px, 1fr) minmax(300px, 460px); }
+    main.mode-read.sdk-closed,
+    main.mode-read.sdk-closed.sdk-input-closed { grid-template-columns: 360px minmax(300px, 1fr) 32px; }
+    /* Burn mode: no SDK Output panel at all — form | preview | SDK Input */
+    main.mode-burn #sdk-right { display: none; }
+    main.mode-burn,
+    main.mode-burn.sdk-closed                 { grid-template-columns: 360px minmax(300px, 1fr) minmax(260px, 400px); }
+    main.mode-burn.sdk-input-closed,
+    main.mode-burn.sdk-input-closed.sdk-closed { grid-template-columns: 360px minmax(300px, 1fr) 32px; }
 
     /* ── Sidebar ──────────────────────────────────────────────────────── */
     #sidebar {
@@ -168,7 +208,7 @@
     .gen-btn:hover { background: var(--accent-dark); }
 
     /* ── Output panel ────────────────────────────────────────────────────── */
-    #output { overflow-y: auto; min-height: 0; padding: 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)); gap: 14px; align-content: start; align-items: start; }
+    #output { overflow-y: auto; min-height: 0; padding: 16px; display: grid; grid-auto-rows: max-content; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)); gap: 14px; align-content: start; align-items: start; }
 
     /* ── Cards ───────────────────────────────────────────────────────────── */
     .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
@@ -316,7 +356,16 @@
     .nfc-reader.burn-err { background: rgba(239,68,68,.2)  !important; border-color: #ef4444 !important; color: #ef4444 !important; }
     .nfc-reader.burn-ok  .nfc-dot { background: #4ade80 !important; animation: none !important; }
     .nfc-reader.burn-err .nfc-dot { background: #ef4444 !important; animation: none !important; }
-  </style>
+  
+/* Info bubble next to a field label */
+.info{position:relative;display:inline-flex;vertical-align:-2px;margin-left:4px;color:var(--muted);cursor:help;outline:none}
+.info svg{width:13px;height:13px;display:block}
+.info:hover,.info:focus-visible{color:var(--accent)}
+.info .bubble{position:absolute;top:calc(100% + 6px);left:-8px;z-index:50;width:230px;padding:9px 11px;border-radius:8px;background:#1b1d22;color:#f3f4f6;font-size:11px;font-weight:400;line-height:1.45;text-transform:none;letter-spacing:0;white-space:normal;box-shadow:0 6px 20px rgba(0,0,0,.25);visibility:hidden}
+.info.right .bubble{left:auto;right:-8px}
+.info:hover .bubble,.info:focus .bubble{visibility:visible}
+.info .bubble b{color:#fff;font-size:inherit;font-weight:700}
+</style>
 </head>
 <body>
 <div id="app">
@@ -327,19 +376,25 @@
       <h1>TigerTag</h1>
       <span style="font-size:10px;font-weight:500;color:rgba(255,255,255,.55);letter-spacing:.3px">
         <a href="https://github.com/TigerTag-Project/TigerTag-RFID-Guide" target="_blank" style="color:inherit;text-decoration:none;border-bottom:1px solid rgba(255,255,255,.25)">Open Source RFID Protocol</a>
-        · <a href="https://github.com/TigerTag-Project/TigerTag-SDK-JS" target="_blank" style="color:inherit;text-decoration:none;border-bottom:1px solid rgba(255,255,255,.25)">JS SDK</a>
+        · <a id="sdk-link" href="https://github.com/TigerTag-Project" target="_blank" style="color:inherit;text-decoration:none;border-bottom:1px solid rgba(255,255,255,.25)">SDK</a>
         · Playground
       </span>
     </div>
     <span class="badge" id="sdk-version-badge">SDK v…</span>
     <div class="spacer"></div>
+    <div id="mode-switch" role="tablist" aria-label="Mode">
+      <button data-mode="read" class="on" role="tab" onclick="setMode('read')" title="Show what the readers read — nothing is written"><span data-icon="read"></span> Read</button>
+      <button data-mode="burn" role="tab" onclick="setMode('burn')" title="Prepare a tag from the form and write it — chips on the readers are only targets"><span data-icon="burn"></span> Burn</button>
+    </div>
     <div id="nfc-bar"></div>
-    <button class="hbtn" onclick="document.getElementById('file-in').click()">⬆ Import .bin</button>
-    <button class="hbtn accent" id="export-btn" onclick="exportBin()" disabled>⬇ Export .bin</button>
-    <button class="hbtn burn" id="burn-btn" onclick="burnRfid()" disabled title="Write current payload to all connected readers">🔥 Burn</button>
-    <button class="hbtn" id="rawread-btn" onclick="rawRead()" disabled title="Read 144 raw bytes from chip (pages 4–39), page by page">🔬 Raw Read</button>
+    <button class="hbtn" onclick="document.getElementById('file-in').click()"><span data-icon="upload"></span> Import .bin</button>
+    <button class="hbtn accent" id="export-btn" onclick="exportBin()" disabled><span data-icon="download"></span> Export .bin</button>
+    <button class="hbtn burn" id="burn-btn" onclick="burnRfid()" disabled title="Write current payload to all connected readers"><span data-icon="burn"></span> Burn</button>
+    <button class="hbtn" id="rawread-btn" onclick="rawRead()" disabled title="Read 144 raw bytes from chip (pages 4–39), page by page"><span data-icon="rawread"></span> Raw Read</button>
     <input type="file" id="file-in" accept=".bin" onchange="importBin(event)">
   </header>
+
+  <div id="nfc-toast" role="status"></div>
 
   <!-- ── Raw Hex Reader modal ────────────────────────────────────────────── -->
   <style>
@@ -388,9 +443,9 @@
   <div id="rawread-overlay" onclick="if(event.target===this)closeRawRead()">
     <div id="rawread-dialog">
       <div id="rawread-titlebar">
-        <span style="font-size:12px;font-weight:700;letter-spacing:.04em">🔬 Raw Hex — pages 4–39</span>
+        <span style="font-size:12px;font-weight:700;letter-spacing:.04em"><span data-icon="rawread"></span> Raw Hex — pages 4–39</span>
         <div style="flex:1"></div>
-        <button onclick="closeRawRead()" style="font-size:15px;background:transparent;border:none;color:var(--muted);cursor:pointer;padding:2px 6px;line-height:1">✕</button>
+        <button onclick="closeRawRead()" style="font-size:15px;background:transparent;border:none;color:var(--muted);cursor:pointer;padding:2px 6px;line-height:1" aria-label="Close"><span data-icon="close" data-size="16"></span></button>
       </div>
       <div id="rawread-panels">
         <!-- panels injected by JS: one per reader -->
@@ -416,47 +471,64 @@
         <div class="field" style="margin-top:6px">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">
             <label style="margin:0">Chip UID</label>
-            <button onclick="newInitUID()" style="padding:2px 9px;font-size:11px;font-weight:600;background:var(--bg);border:1px solid var(--border);border-radius:5px;cursor:pointer;color:var(--muted);line-height:1.6;transition:all .15s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">↺ New</button>
+            <button onclick="newInitUID()" style="padding:2px 9px;font-size:11px;font-weight:600;background:var(--bg);border:1px solid var(--border);border-radius:5px;cursor:pointer;color:var(--muted);line-height:1.6;transition:all .15s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'"><span data-icon="refresh" data-size="12"></span> New</button>
           </div>
           <input type="text" id="f-init-uid" value="" readonly
             style="font-family:monospace;letter-spacing:1.5px;cursor:default;color:var(--text);background:var(--bg)">
         </div>
         <div class="init-info" style="margin-top:10px">
-          <div class="init-icon">◻</div>
+          <div class="init-icon"><span data-icon="square" data-size="28"></span></div>
           <div class="init-title">TigerTag Init</div>
-          <div class="init-desc">Blank / uninitialized chip.<br>All fields are zero — no data written yet.<br><span style="font-size:11px;opacity:.7">Ready to be written with any TigerTag-compatible writer.</span></div>
+          <div class="init-desc">Blank chip<span class="info" tabindex="0" role="button" aria-label="More information"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6.8"/><path d="M8 7.2v4.3" stroke-linecap="round"/><circle cx="8" cy="4.9" r=".9" fill="currentColor" stroke="none"/></svg><span class="bubble" role="tooltip">Blank / uninitialized chip. All fields are zero — no data written yet. Ready to be written with any TigerTag-compatible writer.</span></span></div>
         </div>
       </div>
 
       <!-- ── TigerTag+ mode ────────────────────────────────────────────── -->
       <div id="mode-plus" style="display:none">
-        <div style="background:rgba(249,115,22,.07);border:1px solid rgba(249,115,22,.2);border-radius:8px;padding:9px 11px;margin-bottom:12px;font-size:11px;line-height:1.7;color:var(--text)">
-          <strong style="color:var(--accent)">TigerTag+ — industrial-grade, manufacturers only.</strong><br>
-          Reserved for filament brands (eSun, Polymaker, Rosa3D…). Each chip is ECDSA-signed by the manufacturer's private key, guaranteeing origin and authenticity.<br>
-          <span style="color:var(--muted)">The cloud product ID unlocks rich metadata and enables <em>remote corrections</em> post-deployment — without recalling a single spool.</span>
-        </div>
-
-        <!-- ── Load from API ──────────────────────────────────────────────── -->
-        <div class="presets-title">Load from API</div>
-        <div style="display:flex;gap:6px;align-items:stretch;margin-bottom:4px">
-          <input type="number" id="api-product-id" placeholder="Product ID  (ex: 40)" min="1"
+        <div style="font-size:12.5px;font-weight:700;color:var(--accent);margin:2px 0 12px">TigerTag+ · catalogue product<span class="info right" tabindex="0" role="button" aria-label="More information"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6.8"/><path d="M8 7.2v4.3" stroke-linecap="round"/><circle cx="8" cy="4.9" r=".9" fill="currentColor" stroke="none"/></svg><span class="bubble" role="tooltip"><b>TigerTag+</b> — a TigerTag that knows which catalogue product it is.<br>The chip carries an official product ID from the TigerTag catalogue (eSun, Polymaker, Rosa3D…) and stays 100&nbsp;% offline. Anyone can write one.<br><b>TigerTag+ Certified</b> adds an ECDSA signature that only a certified manufacturer can issue — this playground can verify it, never write it.<br>The cloud product ID unlocks rich metadata and enables remote corrections post-deployment — without recalling a single item.</span></span></div>
+        <!-- ── Load a TigerTag+ product: Offline (catalogue) or Online (API) ──── -->
+        <div class="presets-title">Load a TigerTag+ product<span class="info right" tabindex="0" role="button" aria-label="More information"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6.8"/><path d="M8 7.2v4.3" stroke-linecap="round"/><circle cx="8" cy="4.9" r=".9" fill="currentColor" stroke="none"/></svg><span class="bubble" role="tooltip">Enter a product ID and press <b>Load</b> (or Enter): the whole form is filled, the page switches to Burn and builds the preview. With two readers holding a chip, a twin tag (1 of 2, 2 of 2) is prepared automatically.</span></span></div>
+        <label for="catalog-product-id" style="display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:3px">Product ID</label>
+        <div style="display:flex;gap:6px;align-items:stretch;margin-bottom:6px">
+          <input type="number" id="catalog-product-id" placeholder="e.g. 3527039449" min="1"
             style="flex:1;min-width:0;font-size:13px"
-            onkeydown="if(event.key==='Enter') fetchAndFillFromApi()">
-          <button id="api-fetch-btn" onclick="fetchAndFillFromApi()"
-            style="padding:0 13px;font-size:12px;font-weight:700;background:var(--accent);color:#fff;border:none;border-radius:7px;cursor:pointer;white-space:nowrap;transition:opacity .15s"
+            onkeydown="if(event.key==='Enter') loadProduct()">
+          <button id="catalog-btn" onclick="loadProduct()"
+            style="padding:0 14px;font-size:12px;font-weight:700;background:var(--accent);color:#fff;border:none;border-radius:7px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:5px;transition:opacity .15s"
             onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">
-            Fetch &amp; Fill
+            <span data-icon="download" data-size="13"></span> Load
           </button>
         </div>
-        <div id="api-fetch-status" style="display:none;font-size:11px;font-weight:600;padding:2px 0 6px"></div>
+        <div style="display:flex;align-items:center">
+        <div class="src-seg" role="tablist" aria-label="Product data source" style="flex:1;min-width:0">
+          <button type="button" data-src="offline" role="tab" onclick="setLoadSource('offline')"><span data-icon="catalog" data-size="13"></span> Offline · Catalogue</button>
+          <button type="button" data-src="online" role="tab" onclick="setLoadSource('online')"><span data-icon="cloud" data-size="13"></span> Online · API</button>
+        </div>
+          <span class="info right" tabindex="0" role="button" aria-label="About the data sources" style="margin:0 2px 0 6px"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6.8"/><path d="M8 7.2v4.3" stroke-linecap="round"/><circle cx="8" cy="4.9" r=".9" fill="currentColor" stroke="none"/></svg><span class="bubble" role="tooltip" id="load-hint"></span></span>
+        </div>
+        <div style="height:6px"></div>
+        <div id="catalog-status" style="display:none;font-size:11px;font-weight:600;padding:2px 0 6px"></div>
+        <div id="catalog-card" style="display:none;margin:2px 0 10px"></div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+          <div style="flex:1;min-width:0;font-size:10.5px;font-weight:600;color:var(--muted);display:flex;align-items:center"><span id="catalog-info">Catalogue · …</span><span class="info" tabindex="0" role="button" aria-label="About the catalogue"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6.8"/><path d="M8 7.2v4.3" stroke-linecap="round"/><circle cx="8" cy="4.9" r=".9" fill="currentColor" stroke="none"/></svg><span class="bubble" role="tooltip" id="catalog-info-bubble">Official TigerTag+ product catalogue (14 000+ products). A copy is bundled with the SDK, so it works without internet; the SDK checks for a newer copy once a day. <b>Update</b> downloads the latest version now (it changes every day).</span></span></div>
+          <button id="catalog-refresh-btn" onclick="updateCatalog()" title="Download the latest catalogue now (it changes every day)"
+            style="padding:2px 8px;font-size:11px;font-weight:600;background:var(--bg);color:var(--muted);border:1px solid var(--border);border-radius:6px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:5px"
+            onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
+            <span data-icon="refresh" data-size="12"></span> Update
+          </button>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+          <div style="flex:1;min-width:0;font-size:10.5px;font-weight:600;color:var(--muted);display:flex;align-items:center"><span id="db-info">Tables · …</span><span class="info" tabindex="0" role="button" aria-label="About the reference tables"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6.8"/><path d="M8 7.2v4.3" stroke-linecap="round"/><circle cx="8" cy="4.9" r=".9" fill="currentColor" stroke="none"/></svg><span class="bubble" role="tooltip" id="db-info-bubble">Reference tables (materials, brands, aspects, types, diameters, units, versions). The SDK uses the newest of its bundled copy and the downloaded copy, and checks for updates once a day. <b>Update</b> checks now and downloads only the changed tables.</span></span></div>
+          <button id="db-update-btn" onclick="updateReferenceTables()" title="Check for new reference tables now (materials, brands, aspects…)"
+            style="padding:2px 8px;font-size:11px;font-weight:600;background:var(--bg);color:var(--muted);border:1px solid var(--border);border-radius:6px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:4px"
+            onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
+            <span data-icon="refresh" data-size="12"></span> Update
+          </button>
+        </div>
 
         <!-- ── Demo presets ───────────────────────────────────────────────── -->
-        <div class="presets-title" style="margin-top:10px">Demo presets</div>
+        <div class="presets-title" style="margin-top:10px">Demo presets<span class="info" tabindex="0" role="button" aria-label="More information"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6.8"/><path d="M8 7.2v4.3" stroke-linecap="round"/><circle cx="8" cy="4.9" r=".9" fill="currentColor" stroke="none"/></svg><span class="bubble" role="tooltip">Six example products, available offline.<br>Signed .bin files can be imported with <b>Import .bin</b>; the UID is extracted automatically from 180-byte full dumps.</span></span></div>
         <div class="preset-grid" id="preset-grid"></div>
-        <p style="margin-top:12px;font-size:11px;color:var(--muted);line-height:1.6">
-          Signed .bin files can be imported via ⬆ Import .bin.<br>
-          The UID is extracted automatically from 180B full dumps.
-        </p>
       </div>
 
       <!-- ── TigerTag mode ─────────────────────────────────────────────── -->
@@ -465,7 +537,7 @@
         <div class="field" style="margin-top:6px">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">
             <label style="margin:0">Chip UID</label>
-            <button onclick="newUID()" style="padding:2px 9px;font-size:11px;font-weight:600;background:var(--bg);border:1px solid var(--border);border-radius:5px;cursor:pointer;color:var(--muted);line-height:1.6;transition:all .15s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">↺ New</button>
+            <button onclick="newUID()" style="padding:2px 9px;font-size:11px;font-weight:600;background:var(--bg);border:1px solid var(--border);border-radius:5px;cursor:pointer;color:var(--muted);line-height:1.6;transition:all .15s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'"><span data-icon="refresh" data-size="12"></span> New</button>
           </div>
           <input type="text" id="f-uid" value="04A1B2C3D4E5F6" readonly
             style="font-family:monospace;letter-spacing:1.5px;cursor:default;color:var(--text);background:var(--bg)">
@@ -531,9 +603,14 @@
           </div>
         </div>
         <div class="field">
-          <label>HueForge TD (0 = undefined)</label>
+          <label>HueForge TD<span class="info" tabindex="0" role="button" aria-label="More information"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6.8"/><path d="M8 7.2v4.3" stroke-linecap="round"/><circle cx="8" cy="4.9" r=".9" fill="currentColor" stroke="none"/></svg><span class="bubble" role="tooltip">HueForge Transmission Distance, 0.1–100. <b>0</b> = undefined (no HueForge data on the tag).</span></span></label>
           <input type="number" id="f-td" value="0" min="0" max="100" step="0.1">
         </div>
+        <div class="row2">
+          <div class="field"><label>Tag index<span class="info" tabindex="0" role="button" aria-label="About tag index"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6.8"/><path d="M8 7.2v4.3" stroke-linecap="round"/><circle cx="8" cy="4.9" r=".9" fill="currentColor" stroke="none"/></svg><span class="bubble" role="tooltip">Which of those tags <b>this one</b> is, counting from 1.<br>Twin tag: write <b>1</b> on the first tag and <b>2</b> on the second. A reader that scans tag 1 of 2 knows another tag is waiting.<br><b>0</b> = unknown. Never higher than Tag count.<br>Stored in the high nibble of byte +39 (0x12 = tag 1 of 2).</span></span></label><input type="number" id="f-tag-index" value="0" min="0" max="15" step="1"></div>
+          <div class="field"><label>Tag count<span class="info right" tabindex="0" role="button" aria-label="About tag count"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6.8"/><path d="M8 7.2v4.3" stroke-linecap="round"/><circle cx="8" cy="4.9" r=".9" fill="currentColor" stroke="none"/></svg><span class="bubble" role="tooltip">How many TigerTags <b>this item</b> carries (a filament spool, a resin bottle…) — the same value is written on every tag of the item.<br><b>1</b> = a single tag · <b>2</b> = twin tag (one tag on each side, sharing the same Timestamp) · up to 15.<br><b>0</b> = unknown: every tag written before protocol v2.2.<br>Stored in the low nibble of byte +39.<br>Index / count: single tag → <b>1 / 1</b> · twin tag → <b>1 / 2</b>, then <b>2 / 2</b> on the other tag · <b>0</b> = unknown.</span></span></label><input type="number" id="f-tag-count" value="0" min="0" max="15" step="1"></div>
+        </div>
+        <div id="chip-twin-note" style="display:none;font-size:11px;font-weight:600;color:var(--accent);margin:-4px 0 6px"></div>
 
         <div class="sec">Print Settings</div>
         <div class="row2">
@@ -554,7 +631,8 @@
           <div class="field"><label>Initial qty</label><input type="number" id="f-measure" value="1000" min="0" oninput="onMeasureInput()"></div>
           <div class="field"><label>Unit</label><select id="f-unit"></select></div>
         </div>
-        <div class="field"><label>Available</label><input type="number" id="f-avail" value="1000" min="0" oninput="onAvailInput()"></div>
+        <div class="field"><label>Available</label><input type="number" id="f-avail" value="1000" min="0" oninput="onAvailInput()"><div id="avail-err" style="display:none;font-size:11px;color:var(--err);margin-top:4px"></div></div>
+        <div class="field" style="margin-top:14px"><label>Manufacturing date<span class="info" tabindex="0" role="button" aria-label="About manufacturing date"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6.8"/><path d="M8 7.2v4.3" stroke-linecap="round"/><circle cx="8" cy="4.9" r=".9" fill="currentColor" stroke="none"/></svg><span class="bubble" role="tooltip">The <b>Timestamp</b>: seconds since 2000-01-01 UTC, taken from the clock at the moment you click <b>Generate</b> — never typed by hand.<br>It is also the <b>twin tag ID</b>: every tag of the item gets the same value, which is how a reader pairs them.<br>A chip read from a reader or a .bin shows the value stored on it.</span></span></label><input type="text" id="f-date" readonly tabindex="-1" value="Now — set when you click Generate" style="color:var(--muted);cursor:default"></div>
 
       </div><!-- /mode-standard -->
 
@@ -567,12 +645,17 @@
             <span class="gh-row-sub">Open Source RFID Protocol spec</span>
             <svg class="gh-arrow" width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H4.5M9.5 2.5V7.5"/></svg>
           </a>
-          <a href="https://github.com/TigerTag-Project/TigerTag-SDK-JS" target="_blank" class="gh-row gh-row-accent">
-            <span class="gh-row-name">TigerTag-SDK-JS</span>
-            <span class="gh-row-sub">JS SDK · powers this playground</span>
+          <a href="https://github.com/TigerTag-Project/TigerSystem-Docs" target="_blank" class="gh-row">
+            <span class="gh-row-name">TigerSystem-Docs</span>
+            <span class="gh-row-sub">Ecosystem documentation · wiki</span>
             <svg class="gh-arrow" width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H4.5M9.5 2.5V7.5"/></svg>
           </a>
-          <a href="https://github.com/TigerTag-Project/TigerTag-SDK-Python" target="_blank" class="gh-row">
+          <a href="https://github.com/TigerTag-Project/TigerTag-SDK-JS" target="_blank" class="gh-row" data-sdk="javascript">
+            <span class="gh-row-name">TigerTag-SDK-JS</span>
+            <span class="gh-row-sub">JS SDK</span>
+            <svg class="gh-arrow" width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H4.5M9.5 2.5V7.5"/></svg>
+          </a>
+          <a href="https://github.com/TigerTag-Project/TigerTag-SDK-Python" target="_blank" class="gh-row" data-sdk="python">
             <span class="gh-row-name">TigerTag-SDK-Python</span>
             <span class="gh-row-sub">Python SDK</span>
             <svg class="gh-arrow" width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H4.5M9.5 2.5V7.5"/></svg>
@@ -582,24 +665,88 @@
             <span class="gh-row-sub">Desktop app · Windows / macOS / Linux</span>
             <svg class="gh-arrow" width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H4.5M9.5 2.5V7.5"/></svg>
           </a>
-          <a href="https://github.com/TigerTag-Project/Tiger-Scale" target="_blank" class="gh-row" style="border-bottom:none">
-            <span class="gh-row-name">Tiger-Scale</span>
+          <a href="https://github.com/TigerTag-Project/Tiger-Scale-V3" target="_blank" class="gh-row">
+            <span class="gh-row-name">Tiger-Scale-V3</span>
             <span class="gh-row-sub">Smart filament scale firmware</span>
             <svg class="gh-arrow" width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H4.5M9.5 2.5V7.5"/></svg>
+          </a>
+          <a href="https://github.com/TigerTag-Project/TigerSpool-RFID" target="_blank" class="gh-row">
+            <span class="gh-row-name">TigerSpool-RFID</span>
+            <span class="gh-row-sub">Spool → printer slot firmware</span>
+            <svg class="gh-arrow" width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H4.5M9.5 2.5V7.5"/></svg>
+          </a>
+          <a href="https://github.com/TigerTag-Project/TigerPOD" target="_blank" class="gh-row">
+            <span class="gh-row-name">TigerPOD</span>
+            <span class="gh-row-sub">NFC/RFID reader &amp; writer</span>
+            <svg class="gh-arrow" width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H4.5M9.5 2.5V7.5"/></svg>
+          </a>
+          <a href="https://github.com/TigerTag-Project/TigerTag_Firebase_Integration" target="_blank" class="gh-row" style="border-bottom:none">
+            <span class="gh-row-name">TigerTag_Firebase_Integration</span>
+            <span class="gh-row-sub">Cloud backend integration example</span>
+            <svg class="gh-arrow" width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H4.5M9.5 2.5V7.5"/></svg>
+          </a>
+        </div>
+        <!-- Studio Manager downloads -->
+        <div style="margin-bottom:14px">
+          <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:6px">Studio Manager · Downloads</div>
+          <div style="display:flex;flex-direction:column;gap:5px">
+            <a href="https://github.com/TigerTag-Project/TigerTag-Studio-Manager/releases/latest" target="_blank" style="display:block"><img src="../assets/download_windows.svg" style="width:100%;height:auto;border-radius:8px;display:block" alt="Download for Windows"></a>
+            <a href="https://github.com/TigerTag-Project/TigerTag-Studio-Manager/releases/latest" target="_blank" style="display:block"><img src="../assets/download_macos.svg" style="width:100%;height:auto;border-radius:8px;display:block" alt="Download for macOS"></a>
+            <a href="https://github.com/TigerTag-Project/TigerTag-Studio-Manager/releases/latest" target="_blank" style="display:block"><img src="../assets/download_linux.svg" style="width:100%;height:auto;border-radius:8px;display:block" alt="Download for Linux"></a>
+          </div>
+        </div>
+
+        <!-- Hardware + Mobile App -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <a href="https://github.com/TigerTag-Project/Tiger-Scale-V3" target="_blank" style="text-decoration:none;border:1px solid var(--border);border-radius:9px;overflow:hidden;display:block;transition:border-color .15s,box-shadow .15s" onmouseover="this.style.borderColor='var(--accent)';this.style.boxShadow='0 2px 10px rgba(249,115,22,.15)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none'">
+            <div style="width:100%;aspect-ratio:1;overflow:hidden;background:#ffffff">
+              <img src="../assets/TigerScale_V3.png" style="width:100%;height:100%;object-fit:contain;display:block" alt="Tiger Scale V3">
+            </div>
+            <div style="padding:7px 9px">
+              <div style="font-size:11px;font-weight:700;color:var(--text);line-height:1.2">Tiger Scale V3</div>
+              <div style="font-size:10px;color:var(--muted);margin-top:1px">Smart filament scale</div>
+            </div>
+          </a>
+          <a href="https://github.com/TigerTag-Project/TigerSpool-RFID" target="_blank" style="text-decoration:none;border:1px solid var(--border);border-radius:9px;overflow:hidden;display:block;transition:border-color .15s,box-shadow .15s" onmouseover="this.style.borderColor='var(--accent)';this.style.boxShadow='0 2px 10px rgba(249,115,22,.15)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none'">
+            <div style="width:100%;aspect-ratio:1;overflow:hidden;background:#ffffff">
+              <img src="../assets/TigerSpool.png" style="width:100%;height:100%;object-fit:contain;display:block" alt="TigerSpool">
+            </div>
+            <div style="padding:7px 9px">
+              <div style="font-size:11px;font-weight:700;color:var(--text);line-height:1.2">TigerSpool</div>
+              <div style="font-size:10px;color:var(--muted);margin-top:1px">Spool → printer slot</div>
+            </div>
+          </a>
+          <a href="https://github.com/TigerTag-Project/TigerPOD" target="_blank" style="text-decoration:none;border:1px solid var(--border);border-radius:9px;overflow:hidden;display:block;transition:border-color .15s,box-shadow .15s" onmouseover="this.style.borderColor='var(--accent)';this.style.boxShadow='0 2px 10px rgba(249,115,22,.15)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none'">
+            <div style="width:100%;aspect-ratio:1;overflow:hidden;background:#ffffff">
+              <img src="../assets/TigerPOD_Mini.jpg" style="width:100%;height:100%;object-fit:contain;display:block" alt="TigerPOD Mini">
+            </div>
+            <div style="padding:7px 9px">
+              <div style="font-size:11px;font-weight:700;color:var(--text);line-height:1.2">TigerPOD Mini</div>
+              <div style="font-size:10px;color:var(--muted);margin-top:1px">NFC reader &amp; writer</div>
+            </div>
+          </a>
+          <a href="https://tigersystem.io/download" target="_blank" style="text-decoration:none;border:1px solid var(--border);border-radius:9px;overflow:hidden;display:block;transition:border-color .15s,box-shadow .15s" onmouseover="this.style.borderColor='var(--accent)';this.style.boxShadow='0 2px 10px rgba(249,115,22,.15)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none'">
+            <div style="width:100%;aspect-ratio:1;overflow:hidden;background:#f0f0f0">
+              <img src="../assets/TigerTag_RFID_Connect_Apps.png" style="width:100%;height:100%;object-fit:cover;display:block" alt="Mobile App">
+            </div>
+            <div style="padding:7px 9px">
+              <div style="font-size:11px;font-weight:700;color:var(--text);line-height:1.2">Mobile App</div>
+              <div style="font-size:10px;color:var(--muted);margin-top:1px">iOS &amp; Android</div>
+            </div>
           </a>
         </div>
       </div>
 
       </div><!-- /sidebar-body -->
       <div id="sidebar-footer">
-        <button class="gen-btn" onclick="generate()">▶ Generate &amp; Preview</button>
+        <button class="gen-btn" onclick="generate()"><span data-icon="play" data-size="12"></span> Generate &amp; Preview</button>
       </div>
     </div><!-- /sidebar -->
 
     <!-- ── Output ──────────────────────────────────────────────────────── -->
     <div id="output">
       <div id="placeholder">
-        <div class="icon">◈</div>
+        <div class="icon"><span data-icon="tag" data-size="40"></span></div>
         <p>Select a version to get started,<br>or <strong>Import a .bin</strong> to parse an existing file.</p>
       </div>
     </div>
@@ -612,7 +759,7 @@
       </button>
       <div id="sdk-left-content">
         <div id="sdk-left-empty">
-          <div class="icon">⌥</div>
+          <div class="icon"><span data-icon="code" data-size="40"></span></div>
           <p>Generate a tag to see<br>SDK input here.</p>
         </div>
       </div>
@@ -626,7 +773,7 @@
       </button>
       <div id="sdk-content">
         <div id="sdk-right-empty">
-          <div class="icon">⌥</div>
+          <div class="icon"><span data-icon="code" data-size="40"></span></div>
           <p>Parse a tag to see<br>SDK output here.</p>
         </div>
       </div>
@@ -638,12 +785,102 @@
 <input type="hidden" id="f-product-id" value="10">
 
 <script>
+
+// ── Icons: inline SVG (no emoji anywhere in the playground) ──────────────────
+const ICONS = {
+  read:     '<path d="M2 5.5c3.2-1.6 7-1.4 10 .9 3-2.3 6.8-2.5 10-.9v13.5c-3.2-1.6-7-1.4-10 .9-3-2.3-6.8-2.5-10-.9z"/><path d="M12 6.4v13.5"/>',
+  burn:     '<path d="M12 2.5c.9 3.3 5.2 5.4 5.2 10.2a5.2 5.2 0 0 1-10.4 0c0-2.6 1.5-4.2 2.6-5.2.3 1.8 1.2 2.8 2.4 3.1.3-3-1.4-5.6.2-8.1z"/>',
+  rawread:  '<path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M7 12h10"/>',
+  upload:   '<path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/>',
+  download: '<path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/>',
+  play:     '<path d="M7 4.5v15l12-7.5z" fill="currentColor"/>',
+  check:    '<path d="M5 12.5 9.5 17 19 7.5"/>',
+  x:        '<path d="M6 6l12 12M18 6 6 18"/>',
+  close:    '<path d="M6 6l12 12M18 6 6 18"/>',
+  warn:     '<path d="M12 3.5 2.5 20h19z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.3" r=".7" fill="currentColor"/>',
+  cloud:    '<path d="M7 18.5h10.5a4 4 0 0 0 .5-7.97 6 6 0 0 0-11.6-1.1A4.5 4.5 0 0 0 7 18.5z"/>',
+  hourglass:'<path d="M6 3h12M6 21h12M7 3c0 5 5 6 5 9s-5 4-5 9M17 3c0 5-5 6-5 9s5 4 5 9"/>',
+  refresh:  '<path d="M20 11a8 8 0 1 0-2.34 5.66"/><path d="M20 4v7h-7"/>',
+  external: '<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
+  square:   '<rect x="4.5" y="4.5" width="15" height="15" rx="2"/>',
+  tag:      '<path d="M12 2.5 21.5 12 12 21.5 2.5 12z"/><path d="M12 8.5 15.5 12 12 15.5 8.5 12z"/>',
+  code:     '<path d="M8.5 7 3.5 12l5 5M15.5 7l5 5-5 5"/>',
+  catalog:  '<ellipse cx="12" cy="5.5" rx="7.5" ry="2.5"/><path d="M4.5 5.5v13c0 1.4 3.4 2.5 7.5 2.5s7.5-1.1 7.5-2.5v-13M4.5 12c0 1.4 3.4 2.5 7.5 2.5s7.5-1.1 7.5-2.5"/>',
+};
+// Info bubble (same pattern as the Tag index / Tag count labels): explanations live here, not on screen
+const _INFO_SVG = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6.8"/><path d="M8 7.2v4.3" stroke-linecap="round"/><circle cx="8" cy="4.9" r=".9" fill="currentColor" stroke="none"/></svg>';
+function infoBubble(html, { right = false, label = 'More information' } = {}) {
+  return `<span class="info${right ? ' right' : ''}" tabindex="0" role="button" aria-label="${label}">${_INFO_SVG}`
+    + `<span class="bubble" role="tooltip">${html}</span></span>`;
+}
+
+// Keep every bubble inside its scroll container and the viewport: placed on hover / focus
+function _placeBubble(info) {
+  const b = info.querySelector('.bubble');
+  if (!b) return;
+  let c = info.parentElement;
+  while (c && c !== document.body) {
+    const cs = getComputedStyle(c);
+    if (/(auto|hidden|scroll)/.test(cs.overflowX + ' ' + cs.overflowY)) break;
+    c = c.parentElement;
+  }
+  const box  = (c && c !== document.body ? c : document.documentElement).getBoundingClientRect();
+  const minL = Math.max(box.left, 0) + 6;
+  const maxR = Math.min(box.right, window.innerWidth) - 6;
+  const w    = Math.max(160, Math.min(230, maxR - minL));
+  const ir   = info.getBoundingClientRect();
+  let left = ir.left - 8;
+  if (left + w > maxR) left = maxR - w;
+  if (left < minL) left = minL;
+  b.style.width = w + 'px';
+  b.style.right = 'auto';
+  b.style.left  = (left - ir.left) + 'px';
+}
+document.addEventListener('mouseover', (e) => { const i = e.target.closest && e.target.closest('.info'); if (i) _placeBubble(i); });
+document.addEventListener('focusin',   (e) => { const i = e.target.closest && e.target.closest('.info'); if (i) _placeBubble(i); });
+
+function icon(name, size = 14) {
+  return `<svg class="ic" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor"`
+    + ` stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"`
+    + ` style="vertical-align:middle;flex-shrink:0">${ICONS[name] || ''}</svg>`;
+}
+// Static markup: <span data-icon="name" data-size="14"></span> → inline SVG
+function hydrateIcons(root = document) {
+  root.querySelectorAll('[data-icon]').forEach(el => {
+    el.innerHTML = icon(el.dataset.icon, +(el.dataset.size || 14));
+  });
+}
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const API               = 'https://api.tigertag.io/api:tigertag';
 const PRODUCT_PAGE_BASE = 'https://tigertag.io/pages/product-infos';
-const SDK_REPO          = 'https://github.com/TigerTag-Project/TigerTag-SDK-JS';
-const GHRAW             = '/database';
+// SDK serving this page — from GET /api/version (the same page runs on the JS and Python servers)
+let SDK = {
+  version: '', sdk: '', label: 'SDK', repo: 'https://github.com/TigerTag-Project',
+  install: '', server: 'the playground server (tools/server.*)', style: 'camel',
+};
+// Method names in the SDK's own style
+function M(camel) {
+  return SDK.style === 'snake' ? camel.replace(/[A-Z]/g, (c) => '_' + c.toLowerCase()) : camel;
+}
+
+function applySdkIdentity(info) {
+  if (info && info.version) SDK = { ...SDK, ...info };
+  const link = document.getElementById('sdk-link');
+  if (link) { link.textContent = SDK.label; link.href = SDK.repo; }
+  const badge = document.getElementById('sdk-version-badge');
+  if (badge && SDK.version) { badge.textContent = 'SDK v' + SDK.version; badge.title = `${SDK.label} ${SDK.version} · ${SDK.install}`; }
+  document.querySelectorAll('.gh-row[data-sdk]').forEach((row) => {
+    const mine = row.dataset.sdk === SDK.sdk;
+    row.classList.toggle('gh-row-accent', mine);
+    const sub = row.querySelector('.gh-row-sub');
+    const base = row.dataset.sdk === 'python' ? 'Python SDK' : 'JS SDK';
+    if (sub) sub.textContent = mine ? `${base} · powers this playground` : base;
+  });
+  document.title = `TigerTag · Open Source RFID Protocol Playground${SDK.label !== 'SDK' ? ' · ' + SDK.label : ''}`;
+}
+// Fallback when the server cannot serve /api/db/table/<file>: the official tables on GitHub
+const GHRAW             = 'https://raw.githubusercontent.com/TigerTag-Project/TigerTag-RFID-Guide/main/database';
 
 const ID_TIGERTAG      = 0x5BF59264 >>> 0;
 const ID_TIGERTAG_PLUS = 0xBC0FCB97 >>> 0;
@@ -666,11 +903,14 @@ async function loadDB() {
     types:'id_type.json', diameters:'id_diameter.json', units:'id_measure_unit.json',
     versions:'id_version.json',
   };
+  // The server's table in use (newest of downloaded / bundled), else the GitHub copy
   await Promise.all(Object.entries(files).map(async ([key, file]) => {
-    try {
-      const r = await fetch(`${GHRAW}/${file}`);
-      if (r.ok) DB[key] = await r.json();
-    } catch {}
+    for (const url of [`/api/db/table/${file}`, `${GHRAW}/${file}`]) {
+      try {
+        const r = await fetch(url);
+        if (r.ok) { DB[key] = await r.json(); return; }
+      } catch {}
+    }
   }));
   populateDropdowns();
   document.getElementById('db-status').textContent =
@@ -697,27 +937,261 @@ function parseApiHex(hex) {
   };
 }
 
+// Fill every form field from a parsed tag (parseBuffer) and select its version tab
+function _fillFormFromTag(f) {
+  _currentVersion = f.id_tigertag >>> 0;
+  document.querySelectorAll('.seg-btn').forEach(b =>
+    b.classList.toggle('active', (+b.dataset.val >>> 0) === _currentVersion)
+  );
+  document.getElementById('mode-init').style.display     = (_currentVersion === ID_TIGERTAG_INIT) ? 'block' : 'none';
+  document.getElementById('mode-plus').style.display     = (_currentVersion === ID_TIGERTAG_PLUS) ? 'block' : 'none';
+  document.getElementById('mode-standard').style.display = (_currentVersion === ID_TIGERTAG)      ? 'block' : 'none';
+
+  document.getElementById('f-product-id').value = f.id_product;
+  setSelectVal('f-material', f.id_material);
+  setSelectVal('f-brand',    f.id_brand);
+  setSelectVal('f-type',     f.id_type);
+  setSelectVal('f-diameter', f.id_diameter);
+  repopulateAspects(f.id_aspect1, f.id_aspect2);
+  document.getElementById('f-color1').value          = rgbToHex(f.c1r, f.c1g, f.c1b);
+  document.getElementById('f-alpha1').value          = f.c1a;
+  document.getElementById('alpha1-val').textContent  = f.c1a;
+  document.getElementById('f-color2').value          = rgbToHex(f.c2r, f.c2g, f.c2b);
+  document.getElementById('f-color3').value          = rgbToHex(f.c3r, f.c3g, f.c3b);
+  document.getElementById('f-td').value              = f.td_raw > 0 ? (f.td_raw / 10).toFixed(1) : 0;
+  _setTagFields(f.tag_info || 0);
+  document.getElementById('f-nozzle-min').value      = f.nozzle_min;
+  document.getElementById('f-nozzle-max').value      = f.nozzle_max;
+  document.getElementById('f-bed-min').value         = f.bed_min;
+  document.getElementById('f-bed-max').value         = f.bed_max;
+  document.getElementById('f-dry-temp').value        = f.dry_temp;
+  document.getElementById('f-dry-time').value        = f.dry_time;
+  setSelectVal('f-unit', f.id_unit);
+  _setAvail(f.measure, f.avail !== f.measure ? f.avail : null);
+  document.getElementById('f-msg').value   = f.custom;
+  if (f.uid) document.getElementById('f-uid').value = f.uid;
+  const dateEl = document.getElementById('f-date');
+  if (dateEl) dateEl.value = f.timestamp ? fmtTimestamp(f.timestamp) : 'Now — set when you click Generate';
+  const availErr = document.getElementById('avail-err');
+  if (availErr) availErr.style.display = 'none';
+  updateColorGroups();
+  renderColorPreview();
+}
+
+// ── Load a TigerTag+ product: one Product ID, two sources ─────────────────────
+// Offline · Catalogue → loadFromCatalog() (official catalogue bundled / cached by the SDK)
+// Online · API        → fetchAndFillFromApi() (live api.tigertag.io data)
+let _loadSource = (() => {
+  try { return localStorage.getItem('tigertag.playground.loadSource') === 'online' ? 'online' : 'offline'; }
+  catch { return 'offline'; }
+})();
+let _lastCatalogInfo = null;
+
+function setLoadSource(src) {
+  _loadSource = src === 'online' ? 'online' : 'offline';
+  try { localStorage.setItem('tigertag.playground.loadSource', _loadSource); } catch { /* storage blocked */ }
+  document.querySelectorAll('.src-seg button').forEach(b => {
+    const on = b.dataset.src === _loadSource;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  _renderLoadHint();
+}
+
+function _renderLoadHint() {
+  const el = document.getElementById('load-hint');
+  if (!el) return;
+  const online = '<b>Online · API</b> — live data from api.tigertag.io: needs internet, includes the latest corrections.';
+  if (_loadSource === 'online') {
+    el.innerHTML = online + '<br><br><b>Offline · Catalogue</b> — the official catalogue bundled with the SDK, works without internet.';
+    return;
+  }
+  const i = _lastCatalogInfo;
+  const n = i && i.count != null ? String(i.count).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') : '14 000+';
+  const fa = i && (i.fetched_at || (i.bundled && i.bundled.date));
+  const d = fa ? new Date(fa).toLocaleDateString(undefined, { dateStyle: 'medium' }) : '?';
+  el.innerHTML = `<b>Offline · Catalogue</b> — official catalogue bundled with the SDK, works without internet (${n} products, copy of ${d}).<br><br>` + online;
+}
+
+// Shared message area for both sources
+function _loadSay(color, html) {
+  const status = document.getElementById('catalog-status');
+  status.style.display = 'block'; status.style.color = color; status.innerHTML = html;
+}
+function _switchHint(to) {
+  const label = to === 'online' ? icon('cloud', 12) + ' Online · API' : icon('catalog', 12) + ' Offline · Catalogue';
+  return `<br><span style="font-weight:400;color:var(--muted)">Try `
+    + `<button type="button" onclick="setLoadSource('${to}');loadProduct()" style="font:inherit;font-weight:600;color:var(--accent);background:none;border:none;padding:0;cursor:pointer;display:inline-flex;align-items:center;gap:3px">${label}</button>`
+    + (to === 'online' ? ' — the live API may know this product.' : ' — the bundled catalogue works without internet.') + '</span>';
+}
+
+function loadProduct() {
+  return _loadSource === 'online' ? fetchAndFillFromApi() : loadFromCatalog();
+}
+
+// TigerTag+ from the official catalogue: GET /api/catalog/<id> (the SDK downloads
+// and caches id_catalog.json), fill the form, switch to Burn and build the preview.
+async function loadFromCatalog() {
+  const input  = document.getElementById('catalog-product-id');
+  const card   = document.getElementById('catalog-card');
+  const btn    = document.getElementById('catalog-btn');
+  const id     = (input.value || '').trim();
+  const say    = _loadSay;
+  if (!/^\d+$/.test(id) || +id <= 0) { say('var(--err)', icon('warn') + ' Enter a product ID'); return; }
+
+  say('var(--muted)', icon('hourglass') + ' Loading from the catalogue…');
+  card.style.display = 'none';
+  btn.disabled = true; btn.style.opacity = '.5';
+  let out, status = 0;
+  try {
+    const r = await fetch(`/api/catalog/${encodeURIComponent(id)}`);
+    status = r.status;
+    out = await r.json();
+    if (!r.ok || out.error) throw new Error(out.error || `HTTP ${r.status}`);
+  } catch (e) {
+    say('var(--err)', icon('warn') + ' ' + esc(e.message || 'Catalogue unavailable')
+      + (status === 404 || status === 422 ? _switchHint('online') : ''));
+    return;
+  } finally {
+    btn.disabled = false; btn.style.opacity = '1';
+  }
+
+  const f = parseBuffer(Uint8Array.from(out.payload.match(/.{2}/g).map(h => parseInt(h, 16))).buffer);
+  _fillFormFromTag(f);
+  _formSigned = false;
+
+  const e = out.entry || {};
+  say('var(--ok)', icon('check') + ' ' + esc(e.title || 'Product ' + id));
+  refreshCatalogInfo();
+  card.innerHTML = `<div style="display:flex;gap:10px;align-items:center;border:1px solid var(--border);border-radius:8px;padding:8px;background:var(--card)">
+      ${e.img_src ? `<img src="${esc(e.img_src)}" alt="" style="width:64px;height:64px;object-fit:contain;flex-shrink:0;border-radius:6px;background:#fff" onerror="this.remove()">` : ''}
+      <div style="font-size:11.5px;line-height:1.5;min-width:0">
+        <div style="font-weight:700;font-size:12.5px">${esc(e.title || '')}</div>
+        <div>${esc(e.brand || '')}${e.material ? ' · ' + esc(e.material) : ''}${e.measure ? ' · ' + esc(e.measure) : ''}</div>
+        <div style="color:var(--muted)">${e.sku ? 'SKU ' + esc(e.sku) : ''}${e.barcode ? ' · EAN ' + esc(e.barcode) : ''} · ID ${esc(String(e.id ?? id))}</div>
+      </div>
+    </div>`;
+  card.style.display = 'block';
+
+  await generate();   // switches to Burn; twin tag automatically with 2 readers
+}
+
+// Catalogue cache status line: "Catalogue: 14 164 products · updated <date>"
+function _renderCatalogInfo(info, note = '') {
+  if (info && info.source) { _lastCatalogInfo = info; _renderLoadHint(); }
+  const el = document.getElementById('catalog-info');
+  if (!el) return;
+  const bubble = document.getElementById('catalog-info-bubble');
+  const about = 'Official TigerTag+ product catalogue. A copy is bundled with the SDK, so it works without internet; the SDK checks for a newer copy once a day. <b>Update</b> downloads the latest version now (it changes every day).';
+  if (!info || !info.source) {
+    el.innerHTML = 'Catalogue · none' + (note ? ' · ' + note : '');
+    if (bubble) bubble.innerHTML = 'Not downloaded yet.<br>' + about;
+    return;
+  }
+  const n   = info.count != null ? String(info.count).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') : '?';
+  const fmt = (iso) => iso ? new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '?';
+  const fetchedAt = info.fetched_at || (info.bundled && info.bundled.date) || null;
+  const checked = info.checked_at && fetchedAt && Math.abs(Date.parse(info.checked_at) - Date.parse(fetchedAt)) > 60000
+    ? ` · checked ${fmt(info.checked_at)}` : '';
+  const short = fetchedAt ? new Date(fetchedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '?';
+  el.innerHTML = `Catalogue · ${n} · ${short}` + (note ? ' · ' + note : '');
+  if (bubble) bubble.innerHTML = `<b>${n}</b> products · ${info.source === 'bundled' ? 'bundled copy' : 'downloaded copy'}<br>`
+    + `Copy of ${fmt(fetchedAt)}${checked ? '<br>' + checked.replace(/^ · /, 'Last ') : ''}`
+    + (info.path ? `<br>File: ${esc(info.path)}` : '') + '<br><br>' + about;
+}
+
+// Reference tables status line, from the SDK on the server (TigerTagDB.info())
+function _renderDbInfo(info, note = '') {
+  const el = document.getElementById('db-info');
+  if (!el) return;
+  const bubble = document.getElementById('db-info-bubble');
+  if (!info || !info.tables) { el.innerHTML = 'Tables · unavailable' + (note ? ' · ' + note : ''); return; }
+  const t = Object.entries(info.tables).map(([file, x]) => ({ file, ...x }));
+  const count = (src) => t.filter(x => x.source === src).length;
+  const parts = [`${count('downloaded')} downloaded`, `${count('bundled')} bundled`];
+  if (count('custom')) parts.unshift(`${count('custom')} custom`);
+  const fmt = (iso) => new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  const newest = Math.max(...t.map(x => x.timestamp || 0));
+  const checked = info.offline ? 'offline' : info.last_check ? `checked ${fmt(info.last_check)}` : 'not checked yet';
+  const short = newest ? new Date(newest).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '?';
+  el.innerHTML = note ? `Tables · ${note}` : `Tables · ${short}`;
+  if (bubble) bubble.innerHTML = `<b>${t.length}</b> tables (${parts.join(', ')}) · newest data ${newest ? fmt(newest) : '?'} · ${checked}<br>`
+    + t.map(x => `${esc(x.file)}: ${x.source}${x.timestamp ? ' · ' + fmt(x.timestamp) : ''}`).join('<br>')
+    + `<br>Data dir: ${esc(info.data_dir || '')}<br><br>The SDK uses the newest of its bundled and downloaded copies and checks once a day; <b>Update</b> checks now.`;
+}
+
+async function refreshDbInfo() {
+  try { _renderDbInfo(await (await fetch('/api/db/info')).json()); }
+  catch { _renderDbInfo(null, 'SDK server unavailable'); }
+}
+
+// "Update reference tables": the SDK checks the TigerTag API now and downloads only the changed tables
+async function updateReferenceTables() {
+  const btn = document.getElementById('db-update-btn');
+  const el  = document.getElementById('db-info');
+  btn.disabled = true; btn.style.opacity = '.5';
+  el.innerHTML = icon('hourglass', 11) + ' Tables · checking…';
+  try {
+    const r = await fetch('/api/db/update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    const out = await r.json();
+    if (!r.ok || out.error) {
+      _renderDbInfo(out.info, `<span style="color:var(--err)">${icon('warn', 11)} ${esc(out.error || 'update failed')}</span>`);
+    } else {
+      const n = (out.changed || []).filter(f => f !== 'last_update.json').length;
+      _renderDbInfo(out.info, `<span style="color:var(--ok)">${icon('check', 11)} ${n ? n + ' updated' : 'up to date'}</span>`);
+    }
+  } catch (e) {
+    _renderDbInfo(null, `<span style="color:var(--err)">${icon('warn', 11)} ${esc(e.message)}</span>`);
+  } finally {
+    btn.disabled = false; btn.style.opacity = '1';
+  }
+}
+
+async function refreshCatalogInfo() {
+  try { _renderCatalogInfo(await (await fetch('/api/catalog/info')).json()); }
+  catch { _renderCatalogInfo(null, 'SDK server unavailable'); }
+}
+
+// "Update catalogue": force the SDK to check for a new catalogue now (ETag: an unchanged one is not re-downloaded)
+async function updateCatalog() {
+  const btn = document.getElementById('catalog-refresh-btn');
+  const el  = document.getElementById('catalog-info');
+  btn.disabled = true; btn.style.opacity = '.5';
+  el.innerHTML = icon('hourglass', 11) + ' Catalogue · updating…';
+  try {
+    const r = await fetch('/api/catalog/refresh', { method: 'POST' });
+    const info = await r.json();
+    if (!r.ok || info.error) {
+      _renderCatalogInfo(info, `<span style="color:var(--err)">${icon('warn', 11)} ${esc(info.error || 'update failed')}</span>`);
+    } else {
+      _renderCatalogInfo(info, `<span style="color:var(--ok)">${icon('check', 11)} up to date</span>`);
+    }
+  } catch (e) {
+    _renderCatalogInfo(null, `<span style="color:var(--err)">${icon('warn', 11)} ${esc(e.message)}</span>`);
+  } finally {
+    btn.disabled = false; btn.style.opacity = '1';
+  }
+}
+
 async function fetchAndFillFromApi() {
-  const productId = +document.getElementById('api-product-id').value;
-  const status    = document.getElementById('api-fetch-status');
-  const btn       = document.getElementById('api-fetch-btn');
+  const productId = +document.getElementById('catalog-product-id').value;
+  const btn       = document.getElementById('catalog-btn');
+  const card      = document.getElementById('catalog-card');
   if (!productId || productId <= 0) {
-    status.style.display = 'block'; status.style.color = 'var(--err)';
-    status.textContent = '⚠ Enter a valid Product ID';
+    _loadSay('var(--err)', icon('warn') + ' Enter a product ID');
     return;
   }
 
   // Loading state
-  status.style.display = 'block'; status.style.color = 'var(--muted)';
-  status.textContent = 'Fetching from api.tigertag.io…';
+  _loadSay('var(--muted)', icon('hourglass') + ' Fetching from api.tigertag.io…');
+  card.style.display = 'none';
   btn.disabled = true; btn.style.opacity = '.5';
 
   const data = await fetchProductMeta(productId);
   btn.disabled = false; btn.style.opacity = '1';
 
   if (!data || data._error) {
-    status.style.color = 'var(--err)';
-    status.textContent = '⚠ ' + (data?._error || 'No data returned');
+    _loadSay('var(--err)', icon('warn') + ' api.tigertag.io: ' + esc(data?._error || 'No data returned') + _switchHint('offline'));
     return;
   }
 
@@ -784,12 +1258,23 @@ async function fetchAndFillFromApi() {
   // HueForge TD (API: transmission_dist in mm, chip stores ×10 as integer)
   const td = fil.transmission_dist;
   document.getElementById('f-td').value = td != null ? td : 0;
+  _setTagFields(0); // tag index / count are per tag, never provided by the API
+  _formSigned = false;
 
   updateColorGroups();
   renderColorPreview();
 
-  status.style.color = 'var(--ok)';
-  status.textContent = `✓ ${data.title || 'Product #' + productId}`;
+  _loadSay('var(--ok)', icon('check') + ' ' + esc(data.title || 'Product #' + productId) + ' <span style="font-weight:400;color:var(--muted)">· live API</span>');
+  const img = data.img_src || data.image || data.filament?.img_src || null;
+  card.innerHTML = `<div style="display:flex;gap:10px;align-items:center;border:1px solid var(--border);border-radius:8px;padding:8px;background:var(--card)">
+      ${img ? `<img src="${esc(img)}" alt="" style="width:64px;height:64px;object-fit:contain;flex-shrink:0;border-radius:6px;background:#fff" onerror="this.remove()">` : ''}
+      <div style="font-size:11.5px;line-height:1.5;min-width:0">
+        <div style="font-weight:700;font-size:12.5px">${esc(data.title || '')}</div>
+        <div>${esc(data.brand || '')}${fil.material ? ' · ' + esc(fil.material) : ''}</div>
+        <div style="color:var(--muted)">ID ${esc(String(productId))} · api.tigertag.io</div>
+      </div>
+    </div>`;
+  card.style.display = 'block';
 
   await generate();
 }
@@ -831,11 +1316,91 @@ function setSelectVal(id, val) {
 
 let _currentVersion = ID_TIGERTAG;
 let _lastPayload    = null;
-let _ws             = null;  // exposed WS handle for burnRfid()
+let _nfcOnline      = false; // SSE stream to the server open (GET /api/nfc/events)
+let _nfcAvailable   = false; // the server has reader support (nfc-pcsc / pyscard)
+let _nfcHint        = '';    // how to install it, from readers:status
+let _twin           = null;  // twin tag plan: { n, shown, items: [{ reader, f, payload }] } — one entry per reader
+
+// ── Read / Burn mode ──────────────────────────────────────────────────────────
+// Read: the middle and SDK panels show what the readers read (or an imported .bin).
+// Burn: they show what Burn will write; a chip placed on a reader never replaces it.
+let _mode     = 'read';
+let _readView = null;   // { f, payload, source, readerId? }  last read result
+let _burnView = null;   // { f, payload, twin }               last generated preview
+
+const _READ_PLACEHOLDER = () => icon('read') + ' <strong>Read</strong> · place a chip or import a .bin';
+const _BURN_PLACEHOLDER = () => icon('burn') + ' <strong>Burn</strong> · fill the form, then <strong>Generate</strong>';
+
+// Burn shows SDK Input (what will be written); Read shows SDK Output (what was read).
+// The other panel stays folded on its rail — one click opens it.
+// Read shows only SDK Output, Burn only SDK Input (the other panel and its rail are hidden);
+// switching mode always opens the visible panel, which keeps its own fold toggle.
+function applyModePanels() {
+  const main = document.querySelector('main');
+  main.classList.toggle('mode-read', _mode !== 'burn');
+  main.classList.toggle('mode-burn', _mode === 'burn');
+  main.classList.remove(_mode === 'burn' ? 'sdk-input-closed' : 'sdk-closed');   // open the visible panel
+  main.classList.add(_mode === 'burn' ? 'sdk-closed' : 'sdk-input-closed');      // hidden panel: folded state
+}
+
+function setMode(m, { render = true } = {}) {
+  _mode = m;
+  document.querySelectorAll('#mode-switch button').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
+  applyModePanels();
+  const view = m === 'read' ? _readView : _burnView;
+  _twin        = m === 'burn' && _burnView ? _burnView.twin : null;
+  _lastPayload = view ? view.payload : null;
+  document.getElementById('export-btn').disabled = !view;
+  syncTwinFields();
+  updateBurnBtn();
+  if (!render) return;
+  if (m === 'read') {
+    if (_readView) renderOutput(_readView.f, _readView.payload).then(renderScanCheck);
+    else showPlaceholder(_READ_PLACEHOLDER());
+  } else {
+    if (_burnView) renderOutput(_burnView.f, _burnView.payload);
+    else showPlaceholder(_BURN_PLACEHOLDER());
+  }
+}
+
+function modeBanner() {
+  if (_mode === 'read') {
+    const src = _readView?.source || '';
+    return `<div class="mode-banner read"><span class="ico">${icon('read', 22)}</span><div><b>Read result</b>${src ? ' · ' + esc(src) : ''}`
+      + infoBubble('What is on the chip (or in the imported .bin). Nothing is written in Read mode — to write a tag, switch to <b>Burn</b>.', { right: true })
+      + `</div></div>`;
+  }
+  const targets = twinReaders();
+  const list = _twin
+    ? _twin.items.map((it, k) => `#${k + 1} ${esc(it.reader.name)}${it.reader.uid ? ' (UID ' + esc(it.reader.uid) + ')' : ''} → tag ${k + 1} of ${_twin.n}`).join(' · ')
+    : targets.length ? targets.map(r => `${esc(r.name)}${r.uid ? ' (UID ' + esc(r.uid) + ')' : ''}`).join(' · ')
+    : 'no chip on a reader yet';
+  const short = _twin ? `twin tag · ${_twin.n} chips` : targets.length ? `${targets.length} chip${targets.length > 1 ? 's' : ''}` : 'no chip on a reader';
+  return `<div class="mode-banner burn"><span class="ico">${icon('burn', 22)}</span><div><b>Burn preview</b> · not written · ${short}`
+    + infoBubble(`Not written yet. <b>Burn</b> writes these bytes to:<br>${list.split(' · ').join('<br>')}`, { right: true })
+    + `</div></div>`;
+}
+
+// Read mode: a chip left its reader (card:removed or reader:disconnected). If the Read
+// result came from that reader, show another chip still on a reader, or clear the view.
+// A .bin import (no readerId) stays; Burn mode is untouched.
+async function afterChipGone(readerId) {
+  if (_mode !== 'read') return;
+  if (!_readView || _readView.readerId !== readerId) { renderScanCheck(); return; }
+  const left = [..._scans.values()].sort((a, b) => a.reader.name.localeCompare(b.reader.name));
+  if (left.length) {
+    await importFromScan(left[0].msg);
+    renderScanCheck();
+    return;
+  }
+  _readView = null;
+  setMode('read');
+}
 let _burnPending    = 0;     // burn:result messages still expected
 let _burnOkCount    = 0;     // successful writes in current burn
 let _burnTotal      = 0;     // total readers targeted in current burn
 let _burnUids       = [];    // { uid, ok, reader } per burn:result received
+let _burnDonePending = 0;    // burn:done messages still expected (twin tag: one burn:write per reader)
 
 // Available qty linking — true: f-avail mirrors f-measure automatically
 let _availLinked    = true;
@@ -869,29 +1434,30 @@ function selectVersion(v) {
   document.getElementById('mode-plus').style.display     = (v === ID_TIGERTAG_PLUS) ? 'block' : 'none';
   document.getElementById('mode-standard').style.display = (v === ID_TIGERTAG)      ? 'block' : 'none';
 
+  if (_mode === 'burn') _twin = null;
   if (v === ID_TIGERTAG_INIT) {
     generateInit();
-  } else if (v === ID_TIGERTAG_PLUS) {
-    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-    showPlaceholder('Select one of the 6 TigerTag+ presets to generate a preview.');
-    _lastPayload = null;
-    document.getElementById('export-btn').disabled = true;
-    updateBurnBtn();
   } else {
-    showPlaceholder('Fill in the form and click <strong>Generate &amp; Preview</strong>,<br>or <strong>Import a .bin</strong> to parse an existing file.');
+    if (v === ID_TIGERTAG_PLUS) document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    // Read mode keeps showing what was read — the form only prepares a Burn preview
+    if (_mode !== 'burn') return;
+    _burnView = null;
     _lastPayload = null;
     document.getElementById('export-btn').disabled = true;
+    showPlaceholder(v === ID_TIGERTAG_PLUS
+      ? 'Load a product or pick a preset'
+      : 'Fill the form, then <strong>Generate</strong>');
     updateBurnBtn();
   }
 }
 
 function showPlaceholder(msg) {
   document.getElementById('output').innerHTML =
-    `<div id="placeholder"><div class="icon">◈</div><p>${msg}</p></div>`;
+    `<div id="placeholder"><div class="icon">${icon('tag', 40)}</div><p>${msg}</p></div>`;
   document.getElementById('sdk-content').innerHTML =
-    `<div id="sdk-right-empty"><div class="icon">⌥</div><p>Parse a tag to see<br>SDK output here.</p></div>`;
+    `<div id="sdk-right-empty"><div class="icon">${icon('code', 40)}</div><p>Parse a tag to see<br>SDK output here.</p></div>`;
   document.getElementById('sdk-left-content').innerHTML =
-    `<div id="sdk-left-empty"><div class="icon">⌥</div><p>Generate a tag to see<br>SDK input here.</p></div>`;
+    `<div id="sdk-left-empty"><div class="icon">${icon('code', 40)}</div><p>Generate a tag to see<br>SDK input here.</p></div>`;
 }
 
 function toggleSdkPanel() {
@@ -911,15 +1477,30 @@ function generateInit() {
     c1r:0,c1g:0,c1b:0,c1a:255, c2r:0,c2g:0,c2b:0, c3r:0,c3g:0,c3b:0,
     measure:0, id_unit:0, nozzle_min:0, nozzle_max:0,
     dry_temp:0, dry_time:0, bed_min:0, bed_max:0,
-    timestamp:0, td_raw:0, custom:'', avail:0, uid: uidEl.value || null, sig_r:null, sig_s:null,
+    timestamp:0, td_raw:0, tag_info:0, custom:'', avail:0, uid: uidEl.value || null, sig_r:null, sig_s:null,
   };
+  if (_mode !== 'burn') setMode('burn', { render: false });
+  _twin = null;
   _lastPayload = buildPayload(f);
+  _burnView = { f, payload: _lastPayload, twin: null };
   document.getElementById('export-btn').disabled = false;
   updateBurnBtn();
   renderOutput(f, _lastPayload);
 }
 
 // ── Presets ────────────────────────────────────────────────────────────────────
+
+// Example TigerTag+ products: image and brand logo shipped with the playground (assets/playground/),
+// so the example cards stay illustrated offline and never depend on a third-party link.
+// Missing entries fall back to the TigerTag+ API.
+const PRESET_ASSETS = {
+  60: { img: '../assets/playground/products/60.jpg', logo: '../assets/playground/brands/rosa3d.png' },
+  50: { img: '../assets/playground/products/50.jpg', logo: '../assets/playground/brands/esun.png' },
+  30: { img: '../assets/playground/products/30.jpg', logo: '../assets/playground/brands/r3d.png' },
+  10: { img: '../assets/playground/products/10.jpg', logo: '../assets/playground/brands/polymaker.png' },
+  20: { img: '../assets/playground/products/20.jpg', logo: '../assets/playground/brands/elegoo.png' },
+  40: { img: '../assets/playground/products/40.jpg', logo: '../assets/playground/brands/sunlu.svg' },
+};
 
 const PRESETS = [
   { title:'Rosa3D PLA',    brand:'Rosa3D',    productID:60,  materialID:38219, aspect1ID:92,  aspect2ID:24,  typeID:142, diameterID:56, brandID:19961, colorR:21,  colorG:50,  colorB:166, colorA:255, weight:1000, unitId:21, tempMin:195, tempMax:235, bedMin:40,  bedMax:60, dryTemp:50, dryTime:4 },
@@ -948,15 +1529,18 @@ function buildPresets() {
       </div>`;
     btn.onclick = () => applyPreset(i);
     grid.appendChild(btn);
-    fetchProductMeta(p.productID).then(data => {
+    const local = PRESET_ASSETS[p.productID] || {};
+    if (local.img)  btn.querySelector('.preset-img-wrap').innerHTML = `<img class="prod-img" src="${local.img}" alt="">`;
+    if (local.logo) btn.querySelector('.preset-logo-wrap').innerHTML = `<img src="${local.logo}" alt="${esc(p.brand)}">`;
+    if (!(local.img && local.logo)) fetchProductMeta(p.productID).then(data => {
       if (!data || data._error) return;
       const imgWrap  = btn.querySelector('.preset-img-wrap');
       const logoWrap = btn.querySelector('.preset-logo-wrap');
-      if (data.images?.main_src && imgWrap) {
+      if (!local.img && data.images?.main_src && imgWrap) {
         imgWrap.innerHTML = `<img class="prod-img" src="${esc(data.images.main_src)}" loading="lazy" alt=""
           onerror="this.parentElement.innerHTML='<div class=preset-swatch-fb style=background:${c}></div>'">`;
       }
-      if (data.brand_logo && logoWrap) {
+      if (!local.logo && data.brand_logo && logoWrap) {
         logoWrap.innerHTML = `<img src="${esc(data.brand_logo)}" loading="lazy" alt="${esc(p.brand)}"
           onerror="this.style.display='none'">`;
       }
@@ -965,6 +1549,7 @@ function buildPresets() {
 }
 
 function applyPreset(idx) {
+  _formSigned = false;
   document.querySelectorAll('.preset-btn').forEach(b => b.classList.toggle('active', +b.dataset.idx === idx));
   const p = PRESETS[idx];
   document.getElementById('f-product-id').value = p.productID;
@@ -985,10 +1570,25 @@ function applyPreset(idx) {
   setSelectVal('f-unit', p.unitId);
   _setAvail(p.weight, null); // full spool — link restored
   document.getElementById('f-msg').value   = '';
+  _setTagFields(0);
   generate();
 }
 
 // ── UI helpers ─────────────────────────────────────────────────────────────────
+
+// Tag index / tag count (byte +39): high nibble = index, low nibble = count ("index/count": 0x12 = 1 of 2)
+function _packTagInfo(index, count) { return ((index & 0x0F) << 4) | (count & 0x0F); }
+function _tagIndexOf(tagInfo) { return (tagInfo >> 4) & 0x0F; }
+function _tagCountOf(tagInfo) { return tagInfo & 0x0F; }
+function _setTagFields(tagInfo) {
+  document.getElementById('f-tag-index').value = _tagIndexOf(tagInfo);
+  document.getElementById('f-tag-count').value = _tagCountOf(tagInfo);
+}
+function _tagLabel(tagInfo) {
+  if (!tagInfo) return 'unknown';
+  const count = _tagCountOf(tagInfo), index = _tagIndexOf(tagInfo);
+  return `${index || '?'} of ${count || '?'}`;
+}
 
 function rgbToHex(r,g,b) { return '#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join(''); }
 function hexToRgb(hex) {
@@ -1067,26 +1667,56 @@ function renderColorPreview() {
   const svg = document.getElementById('color-preview');
   const lbl = document.getElementById('color-preview-label');
   if (!svg) return;
-  const cc = getColorCount();
-  const [r1,g1,b1] = hexToRgb(document.getElementById('f-color1').value);
-  const [r2,g2,b2] = hexToRgb(document.getElementById('f-color2').value);
-  const [r3,g3,b3] = hexToRgb(document.getElementById('f-color3').value);
-  const c1 = `rgb(${r1},${g1},${b1})`;
-  const c2 = `rgb(${r2},${g2},${b2})`;
-  const c3 = `rgb(${r3},${g3},${b3})`;
-  const a  = (+document.getElementById('f-alpha1').value / 255).toFixed(2);
-  if (cc === 1) {
-    svg.innerHTML = `<circle r="32" fill="${c1}" fill-opacity="${a}"/>`;
-    lbl.textContent = '1 color';
+
+  const cc   = getColorCount();
+  const c1   = document.getElementById('f-color1').value;
+  const c2   = document.getElementById('f-color2').value;
+  const c3   = document.getElementById('f-color3').value;
+
+  const asp1      = byId('aspects', +document.getElementById('f-aspect1').value);
+  const asp2      = byId('aspects', +document.getElementById('f-aspect2').value);
+  const asp1Label = (asp1?.label || '').toLowerCase();
+  const asp2Label = (asp2?.label || '').toLowerCase();
+  const gradientKw = ['gradient', 'satin'];
+  const isGradient = gradientKw.some(k => asp1Label.includes(k) || asp2Label.includes(k));
+
+  const R = 32;
+  const f = n => n.toFixed(3);
+  const pt = deg => [R * Math.cos(deg * Math.PI / 180), R * Math.sin(deg * Math.PI / 180)];
+
+  if (isGradient) {
+    const endColor = cc >= 2 ? c2 : '#ffffff';
+    svg.innerHTML = `
+      <defs>
+        <linearGradient id="cpg" x1="0" y1="0.5" x2="1" y2="0.5" gradientUnits="objectBoundingBox">
+          <stop offset="0%" stop-color="${c1}"/>
+          <stop offset="100%" stop-color="${endColor}"/>
+        </linearGradient>
+        <clipPath id="cpc"><circle r="${R}"/></clipPath>
+      </defs>
+      <rect x="-${R}" y="-${R}" width="${R*2}" height="${R*2}" fill="url(#cpg)" clip-path="url(#cpc)"/>`;
   } else if (cc === 2) {
-    svg.innerHTML = `<path d="M0,-32 A32,32,0,0,1,0,32 L0,0 Z" fill="${c1}" fill-opacity="${a}"/>
-                     <path d="M0,-32 A32,32,0,0,0,0,32 L0,0 Z" fill="${c2}"/>`;
-    lbl.textContent = '2 colors (Bicolor)';
+    svg.innerHTML = `
+      <path d="M 0,0 L 0,-${R} A ${R},${R} 0 0,0 0,${R} Z" fill="${c1}"/>
+      <path d="M 0,0 L 0,-${R} A ${R},${R} 0 0,1 0,${R} Z" fill="${c2}"/>`;
+  } else if (cc >= 3) {
+    const [x1,y1] = pt(-90);
+    const [x2,y2] = pt(30);
+    const [x3,y3] = pt(150);
+    svg.innerHTML = `
+      <path d="M 0,0 L ${f(x1)},${f(y1)} A ${R},${R} 0 0,1 ${f(x2)},${f(y2)} Z" fill="${c1}"/>
+      <path d="M 0,0 L ${f(x2)},${f(y2)} A ${R},${R} 0 0,1 ${f(x3)},${f(y3)} Z" fill="${c2}"/>
+      <path d="M 0,0 L ${f(x3)},${f(y3)} A ${R},${R} 0 0,1 ${f(x1)},${f(y1)} Z" fill="${c3}"/>`;
   } else {
-    svg.innerHTML = `<path d="M0,-32 A32,32,0,0,1,27.7,16 L0,0 Z" fill="${c1}" fill-opacity="${a}"/>
-                     <path d="M27.7,16 A32,32,0,0,1,-27.7,16 L0,0 Z" fill="${c2}"/>
-                     <path d="M-27.7,16 A32,32,0,0,1,0,-32 L0,0 Z" fill="${c3}"/>`;
-    lbl.textContent = '3 colors (Tricolor)';
+    const a = (+document.getElementById('f-alpha1').value / 255).toFixed(2);
+    svg.innerHTML = `<circle r="${R}" fill="${c1}" fill-opacity="${a}"/>`;
+  }
+
+  // Label: aspect 1 name / aspect 2 name below the circle
+  if (lbl) {
+    const a1txt = (asp1?.id && asp1.id !== 0) ? asp1.label : '—';
+    const a2txt = (asp2?.id && asp2.id !== 0 && asp2.id !== 255) ? asp2.label : '—';
+    lbl.innerHTML = `${a1txt}<br>${a2txt}`;
   }
 }
 
@@ -1113,7 +1743,7 @@ function buildPayload(f) {
     ...u8(f.dry_temp), ...u8(f.dry_time),
     ...u8(f.bed_min), ...u8(f.bed_max),
     ...u32be(f.timestamp),
-    f.c2r, f.c2g, f.c2b, 0,
+    f.c2r, f.c2g, f.c2b, (f.tag_info || 0) & 0xFF,
     f.c3r, f.c3g, f.c3b, 0,
     ...u16be(f.td_raw), 0, 0,
     ...msgP,
@@ -1145,7 +1775,7 @@ function parseBuffer(buf) {
   f.nozzle_min=r16(); f.nozzle_max=r16();
   f.dry_temp=r8(); f.dry_time=r8(); f.bed_min=r8(); f.bed_max=r8();
   f.timestamp=r32();
-  f.c2r=r8(); f.c2g=r8(); f.c2b=r8(); r8();
+  f.c2r=r8(); f.c2g=r8(); f.c2b=r8(); f.tag_info=r8();
   f.c3r=r8(); f.c3g=r8(); f.c3b=r8(); r8();
   f.td_raw=r16(); r16();
   const _rawMsg = new TextDecoder().decode(data.slice(p,p+28)).replace(/\0.*$/,'');
@@ -1164,10 +1794,10 @@ function parseBuffer(buf) {
 // ── ECDSA verification (Web Crypto) ───────────────────────────────────────────
 
 async function verifySig(f) {
-  if (!f.sig_r) return { status:'unsigned', label:'⬜ NOT SIGNED', cls:'unsigned' };
-  if (!f.uid)   return { status:'no_uid',   label:'⚠ UID REQUIRED', cls:'no_uid'  };
+  if (!f.sig_r) return { status:'unsigned', label:icon('square') + ' NOT SIGNED', cls:'unsigned' };
+  if (!f.uid)   return { status:'no_uid',   label:icon('warn') + ' UID REQUIRED', cls:'no_uid'  };
   const vEntry = byId('versions', f.id_tigertag);
-  if (!vEntry?.public_key) return { status:'no_key', label:'⚠ NO PUBLIC KEY', cls:'no_uid' };
+  if (!vEntry?.public_key) return { status:'no_key', label:icon('warn') + ' NO PUBLIC KEY', cls:'no_uid' };
   try {
     const pem = vEntry.public_key.replace(/-----[^-]+-----/g,'').replace(/\s/g,'');
     const der = Uint8Array.from(atob(pem), c=>c.charCodeAt(0));
@@ -1180,9 +1810,9 @@ async function verifySig(f) {
     const sig = new Uint8Array(64);
     sig.set(f.sig_r,0); sig.set(f.sig_s,32);
     const ok = await crypto.subtle.verify({name:'ECDSA',hash:'SHA-256'}, key, sig, msg);
-    return ok ? {status:'valid',label:'✅ VALID',cls:'valid'} : {status:'invalid',label:'❌ INVALID',cls:'invalid'};
+    return ok ? {status:'valid',label:icon('check') + ' VALID',cls:'valid'} : {status:'invalid',label:icon('x') + ' INVALID',cls:'invalid'};
   } catch(e) {
-    return { status:'error', label:`⚠ ${e.message}`, cls:'no_uid' };
+    return { status:'error', label:icon('warn') + ' ' + esc(e.message), cls:'no_uid' };
   }
 }
 
@@ -1201,7 +1831,7 @@ async function fetchCloud(uid, productId, payload) {
   if (!productId || productId === 0xFFFFFFFF || productId === 0) return null;
   const payloadHex = payload ? Array.from(payload).map(b=>b.toString(16).padStart(2,'0')).join('') : '';
   try {
-    // Call the local JS SDK server — it runs TigerTag.diffApi() server-side
+    // The local playground server runs diff_api() / diffApi() with its own SDK
     const r = await fetch('/api/diff', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1219,6 +1849,7 @@ async function fetchCloud(uid, productId, payload) {
 
 function readForm() {
   const v          = _currentVersion;
+  let f;
   const productRaw = +document.getElementById('f-product-id').value;
   const id_product = (v === ID_TIGERTAG_PLUS) ? productRaw
                    : (v === ID_TIGERTAG_INIT) ? 0 : 0xFFFFFFFF;
@@ -1226,7 +1857,7 @@ function readForm() {
   const [c2r,c2g,c2b] = hexToRgb(document.getElementById('f-color2').value);
   const [c3r,c3g,c3b] = hexToRgb(document.getElementById('f-color3').value);
   // timestamp is always null — the SDK sets its own write-time timestamp
-  return {
+  f = {
     id_tigertag: v, id_product,
     id_material: +document.getElementById('f-material').value,
     id_aspect1:  +document.getElementById('f-aspect1').value,
@@ -1246,87 +1877,320 @@ function readForm() {
     bed_max:    +document.getElementById('f-bed-max').value,
     timestamp:  null,
     td_raw:     Math.round(+document.getElementById('f-td').value * 10),
+    tag_count: +document.getElementById('f-tag-count').value,
+    tag_index: +document.getElementById('f-tag-index').value,
     custom:     document.getElementById('f-msg').value,
     avail:      +document.getElementById('f-avail').value,
     uid:        document.getElementById('f-uid').value.toUpperCase().replace(/[^0-9A-F]/g,'') || null,
     sig_r: null, sig_s: null,
   };
+  f.tag_info = _packTagInfo(f.tag_index, f.tag_count);
+  return f;
 }
 
 // ── Generate & render ─────────────────────────────────────────────────────────
 
-async function generate() {
-  const f = readForm();
+// Seconds since 2000-01-01 UTC — the TigerTag Timestamp (also the twin tag pairing ID)
+function fmtTimestamp(ts) {
+  return new Date((EPOCH_OFFSET + ts) * 1000).toISOString().replace('T', ' ').slice(0, 19) + ` UTC · ${ts}`;
+}
 
-  // The SDK (tools/server.js → TigerTag.create(kwargs).toBytes()) is the ONLY
-  // source of truth for the chip payload.  The browser never computes the binary
-  // format — it is purely a UI that forwards kwargs to the SDK and displays results.
-  const createKwargs = {
-    productId:        f.id_product >>> 0,
-    idMaterial:       f.id_material,
-    idAspect1:        f.id_aspect1,
-    idAspect2:        f.id_aspect2,
-    idType:           f.id_type,
-    idDiameter:       f.id_diameter,
-    idBrand:          f.id_brand,
-    color1R: f.c1r, color1G: f.c1g, color1B: f.c1b, color1A: f.c1a,
-    color2R: f.c2r, color2G: f.c2g, color2B: f.c2b,
-    color3R: f.c3r, color3G: f.c3g, color3B: f.c3b,
-    measure:          f.measure,
-    measureAvailable: f.avail,
-    idUnit:           f.id_unit,
-    nozzleTempMin:    f.nozzle_min,
-    nozzleTempMax:    f.nozzle_max,
-    dryTemp:          f.dry_temp,
-    dryTime:          f.dry_time,
-    bedTempMin:       f.bed_min,
-    bedTempMax:       f.bed_max,
-    tdRaw:            f.td_raw || 0,
-    customMessage:    f.custom || '',
-    timestamp:        f.timestamp,
+function _tigertagNow() {
+  return Math.max(0, Math.floor((Date.now() - Date.UTC(2000, 0, 1)) / 1000));
+}
+
+// Active color slots from the aspect DB: aspect 2 first (Bicolor / Tricolor), then aspect 1
+function _colorCount(f) {
+  const asp1E = byId('aspects', f.id_aspect1);
+  const asp2E = byId('aspects', f.id_aspect2);
+  if (asp2E && (asp2E.color_count||1) > 1) return asp2E.color_count;
+  if (asp1E && (asp1E.color_count||1) > 1) return asp1E.color_count;
+  return 1;
+}
+
+// Exact kwargs for TigerTag.create() — used both for /api/build and for the
+// SDK Input create() view, so the text shown always reproduces the bytes.
+// Required fields always present; optional fields omitted when at default (0 / empty).
+function _createKwargs(f) {
+  const colorCount = _colorCount(f);
+  const _o = (v) => v || undefined;  // omit if 0 / falsy
+  const raw = {
+    // ── Required ────────────────────────────────────────────────────────────
+    product_id:        f.id_product >>> 0,
+    id_material:       f.id_material,
+    id_aspect_1:       f.id_aspect1,
+    id_type:           f.id_type,
+    id_brand:          f.id_brand,
+    color1_r:          f.c1r,
+    color1_g:          f.c1g,
+    color1_b:          f.c1b,
+    color1_a:          f.c1a,
+    measure:           f.measure,
+    id_unit:           f.id_unit,
+    // ── Optional — omitted when 0 / inactive ────────────────────────────────
+    id_aspect_2:       _o(f.id_aspect2),
+    id_diameter:       _o(f.id_diameter),
+    color2_r: colorCount >= 2 ? f.c2r : undefined,
+    color2_g: colorCount >= 2 ? f.c2g : undefined,
+    color2_b: colorCount >= 2 ? f.c2b : undefined,
+    color3_r: colorCount >= 3 ? f.c3r : undefined,
+    color3_g: colorCount >= 3 ? f.c3g : undefined,
+    color3_b: colorCount >= 3 ? f.c3b : undefined,
+    nozzle_temp_min:   _o(f.nozzle_min),
+    nozzle_temp_max:   _o(f.nozzle_max),
+    dry_temp:          _o(f.dry_temp),
+    dry_time:          _o(f.dry_time),
+    bed_temp_min:      _o(f.bed_min),
+    bed_temp_max:      _o(f.bed_max),
+    timestamp:         f.timestamp != null ? f.timestamp : undefined,
+    td_raw:            _o(f.td_raw),
+    tag_count:         _o(_tagCountOf(f.tag_info || 0)),
+    tag_index:         _o(_tagIndexOf(f.tag_info || 0)),
+    custom_message:    _o(f.custom),
+    measure_available: f.avail > 0 && f.avail !== f.measure ? f.avail : undefined,
   };
+  // drop undefined so the request and the code shown stay minimal
+  return Object.fromEntries(Object.entries(raw).filter(([,v]) => v !== undefined));
+}
 
-  let payload = null;
+// The create() call that reproduces these bytes, in the SDK's own language
+function _createCode(kwargs) {
+  const val = (v) => JSON.stringify(v);
+  const entries = Object.entries(kwargs);
+  if (SDK.style === 'snake') {
+    const avail = kwargs.measure_available;
+    const args = entries.filter(([k]) => k !== 'measure_available').map(([k, v]) => `    ${k}=${val(v)},`).join('\n');
+    return `tag = TigerTag.create(\n${args}\n)\n`
+      + (avail != null ? `tag = tag.patch(measure_available=${val(avail)})\n` : '')
+      + 'payload = tag.to_bytes()';
+  }
+  const args = entries.map(([k, v]) => `  ${M(k.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase()))}: ${val(v)},`).join('\n');
+  return `const tag = TigerTag.create({\n${args}\n});\nconst payload = tag.toBytes();`;
+}
+
+// The SDK on the server (POST /api/build → TigerTag.create(…) → bytes) is the ONLY
+// source of truth for the chip payload.
+async function _sdkBuild(f) {
+  const r   = await fetch('/api/build', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(_createKwargs(f)),
+  });
+  const out = await r.json();
+  if (!out.payload) throw new Error(out.error || 'empty payload');
+  return new Uint8Array(out.payload.match(/.{2}/g).map(h => parseInt(h, 16)));
+}
+
+async function generate() {
+  if (_mode !== 'burn') setMode('burn', { render: false });   // Generate = Burn preview
+  syncTwinFields();
+  const f = readForm();
+  // Refuse a remaining quantity above the initial one (the SDKs reject it too)
+  const availErr = document.getElementById('avail-err');
+  if (f.measure > 0 && f.avail > f.measure) {
+    if (availErr) {
+      availErr.textContent = `Available (${f.avail}) cannot exceed the initial quantity (${f.measure}).`;
+      availErr.style.display = 'block';
+    }
+    return;
+  }
+  if (availErr) availErr.style.display = 'none';
+  // One Timestamp computed here and passed to create(): every chip of a twin tag
+  // shares it (it is the twin tag pairing ID), and the view shows the real value.
+  f.timestamp = _tigertagNow();
+  const dateEl = document.getElementById('f-date');
+  if (dateEl) dateEl.value = fmtTimestamp(f.timestamp);
+  const rs = twinReaders();
+
   try {
-    const r   = await fetch('/api/build', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(createKwargs),
-    });
-    const out = await r.json();
-    if (out.payload) {
-      payload = new Uint8Array(out.payload.match(/.{2}/g).map(h => parseInt(h, 16)));
+    if (rs.length >= 2) {
+      // Twin tag: one payload per reader — same data and Timestamp, tag index 1…n
+      const n = rs.length;
+      const items = [];
+      for (const [i, r] of rs.entries()) {
+        const fi = { ...f, tag_count: n, tag_index: i + 1, tag_info: _packTagInfo(i + 1, n), uid: r.uid || f.uid };
+        items.push({ reader: r, f: fi, payload: await _sdkBuild(fi) });
+      }
+      _twin = { n, shown: 0, items };
+      _lastPayload = items[0].payload;
     } else {
-      throw new Error(out.error || 'empty payload');
+      _twin = null;
+      _lastPayload = await _sdkBuild(f);
     }
   } catch (err) {
     // SDK server is required — without it we cannot generate or burn a chip
     const out = document.getElementById('output');
     out.innerHTML = `<div class="card" style="border-left:3px solid var(--err);padding:16px;color:var(--err)">
       <strong>SDK server required</strong><br>
-      <code style="font-size:12px">node tools/server.js</code> must be running.<br>
-      <small style="color:var(--muted)">${err.message}</small>
+      <code style="font-size:12px">${esc(SDK.server)}</code> must be running.<br>
+      <small style="color:var(--muted)">${esc(err.message)}</small>
     </div>`;
+    _twin = null;
     _lastPayload = null;
+    _burnView = null;
     updateBurnBtn();
     return;
   }
 
-  _lastPayload  = payload;
+  _burnView = _twin
+    ? { f: _twin.items[0].f, payload: _lastPayload, twin: _twin }
+    : { f, payload: _lastPayload, twin: null };
   document.getElementById('export-btn').disabled = false;
   updateBurnBtn();
-  await renderOutput(f, payload);
+  await renderOutput(_burnView.f, _burnView.payload);
+}
+
+// ── Twin tag: two or more readers holding a chip ─────────────────────────────
+
+// Readers holding a chip, sorted by name → #1, #2, …
+function twinReaders() {
+  return [..._readerState.values()].filter(r => r.hasCard).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// What the tagged item is: the idType label, lowercased ("filament", "resin"); unknown → "item"
+function _itemNoun(idType) {
+  const id = idType != null ? idType : +(document.getElementById('f-type')?.value || 0);
+  const e  = DB.types ? byId('types', id) : null;
+  return (e?.label || '').trim().toLowerCase() || 'item';
+}
+
+// Lock Tag index / Tag count while two or more readers hold a chip
+function syncTwinFields() {
+  const rs   = _mode === 'burn' ? twinReaders() : [];   // twin tag locking: Burn mode only
+  const cnt  = document.getElementById('f-tag-count');
+  const idx  = document.getElementById('f-tag-index');
+  const note = document.getElementById('chip-twin-note');
+  if (!cnt || !idx || !note) return;
+  if (rs.length >= 2) {
+    cnt.value = rs.length; cnt.disabled = true;
+    idx.value = ''; idx.placeholder = 'auto'; idx.disabled = true;
+    note.innerHTML = `Twin tag · ${rs.length} readers` + infoBubble(
+      `${rs.length} readers with a chip → twin tag, ${rs.length} tags on this ${esc(_itemNoun())}:<br>`
+      + rs.map((r, i) => `#${i + 1} ${esc(r.name)} = tag ${i + 1} of ${rs.length}`).join('<br>'));
+    note.style.display = 'block';
+  } else {
+    if (cnt.disabled || idx.disabled) {
+      cnt.disabled = false; idx.disabled = false; idx.placeholder = '';
+      if (idx.value === '') idx.value = 0;
+    }
+    note.style.display = 'none';
+  }
+}
+
+// SDK Output #1 / #2 switch — re-render the output for one chip of the twin tag
+async function showTwin(k) {
+  if (!_twin || !_twin.items[k]) return;
+  _twin.shown = k;
+  await renderOutput(_twin.items[k].f, _twin.items[k].payload);
+}
+
+// ── SDK Input panel: the create() call, and the bytes Burn writes ────────────
+
+// Burn (POST /api/nfc/burn on the playground server) always writes the full
+// 144-byte image, pages 0x04–0x27, with the signature pages 0x18–0x27 ALWAYS 00:
+// a playground never writes a signature (only a certified manufacturer can issue one,
+// and a copied signature is invalid since it covers the chip UID), and a burn never
+// leaves a stale one on the chip.
+const BURN_BYTES = 144;
+const BURN_SIG_NOTE = 'signature pages 0x18–0x27 always written as 00 — playgrounds never write a signature';
+const BURN_SIG_NOT_COPIED = 'the signature read from the chip is not copied';
+let _formSigned = false;   // the form was last filled from a signed chip / .bin
+
+// The exact image Burn writes: the tag data (first 80 bytes), signature area zeroed
+function _burnImage(payload) {
+  const img = new Uint8Array(BURN_BYTES);
+  if (payload) img.set(Array.from(payload).slice(0, 80));
+  return img;
+}
+function _hasSignature(payload) {
+  return !!payload && Array.from(payload).slice(80, BURN_BYTES).some(b => b !== 0);
+}
+function _burnHex(payload) {
+  return Array.from(_burnImage(payload)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function sdkInputParts(f, payload) {
+  const createText = _createCode(_createKwargs(f));
+  const bytes = payload ? Array.from(_burnImage(payload)) : [];
+  return {
+    createText,
+    hex:      bytes.map(b => b.toString(16).padStart(2, '0')).join(''),
+    count:    bytes.length,
+    lastPage: (3 + bytes.length / 4).toString(16).toUpperCase().padStart(2, '0'),
+    sigDropped: _hasSignature(payload) || (_mode === 'burn' && _formSigned),
+  };
+}
+
+function renderSdkInput(f, payload) {
+  const items = _twin ? _twin.items : [{ reader: null, f, payload }];
+  const parts = items.map((it, k) => ({ ...sdkInputParts(it.f, it.payload),
+    title: it.reader ? `#${k + 1} · ${it.reader.name}${it.reader.uid ? ' · UID ' + it.reader.uid : ''} · tag ${k + 1} of ${items.length}` : '' }));
+  const head  = t => t ? `<div style="padding:7px 14px 5px;border-top:1px solid var(--border);font-size:11px;font-weight:700;color:var(--accent)">${esc(t)}</div>` : '';
+  const first = parts[0];
+  document.getElementById('sdk-left-content').innerHTML = `
+    <div style="position:sticky;top:0;z-index:2;background:var(--card)">
+      <div class="sdk-panel-header">
+        <span>SDK Input${_mode === 'read' ? ' · rebuilds this chip' : _twin ? ` · twin tag, ${items.length} tags` : ' · what Burn writes'}</span>
+        <button class="sdk-copy-btn" id="sdkin-copy-btn" onclick="copySdkInTab()">Copy</button>
+      </div>
+      <div class="sdk-tab-bar">
+        <button class="sdk-tab active" id="sdkintab-create" onclick="switchSdkInTab('create')">create()</button>
+        <button class="sdk-tab"        id="sdkintab-hex"    onclick="switchSdkInTab('hex')">HEX</button>
+        <button class="sdk-tab"        id="sdkintab-pages"  onclick="switchSdkInTab('pages')">Pages</button>
+      </div>
+      <div id="sdk-left-burn-uids" style="display:none;padding:6px 14px 8px;font-size:11px;font-family:monospace;font-weight:600;color:var(--text);border-top:1px solid var(--border);letter-spacing:.03em"></div>
+    </div>
+    <div id="sdkinpanel-create" style="display:block">
+      ${parts.map(pt => head(pt.title) + `<pre class="json-block">${esc(pt.createText)}</pre>`).join('')}
+    </div>
+    <div id="sdkinpanel-hex" style="display:none">
+      <div class="card-body" style="font-size:11px;color:var(--muted);padding-bottom:0">${first.count} B${_twin ? ' per chip' : ''} · 0x04–0x${first.lastPage}${infoBubble(`${first.count} bytes${_twin ? ' per chip' : ''} · pages 0x04–0x${first.lastPage} · exactly what <b>Burn</b> writes.<br>The ${BURN_SIG_NOTE}${first.sigDropped ? ' — ' + BURN_SIG_NOT_COPIED : ''}.`)}</div>
+      ${parts.map(pt => head(pt.title) + `<pre class="json-block" style="white-space:pre-wrap;word-break:break-all">${pt.hex.toUpperCase()}</pre>`).join('')}
+    </div>
+    <div id="sdkinpanel-pages" style="display:none">
+      <div class="card-body" style="font-size:11px;color:var(--muted);padding-bottom:0">${first.count / 4} pages${infoBubble('Page by page, in write order — one 4-byte write per page. Same annotations as Raw Read.')}</div>
+      ${parts.map(pt => head(pt.title) + `<div class="sdkin-pages" style="overflow-x:auto;padding:8px 6px 12px">${pt.hex ? _buildHexTable(pt.hex).outerHTML : ''}</div>`).join('')}
+    </div>
+    <div id="sdk-left-returns-wrap" style="display:none">
+      <div style="padding:7px 14px 5px;border-top:1px solid var(--border);background:var(--card)">
+        <span style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.04em">→ Burn result</span>
+      </div>
+      <pre id="sdk-left-returns" class="json-block"></pre>
+    </div>`;
+}
+
+function switchSdkInTab(tab) {
+  ['create', 'hex', 'pages'].forEach(t => {
+    const panel = document.getElementById(`sdkinpanel-${t}`);
+    const btn   = document.getElementById(`sdkintab-${t}`);
+    if (panel) panel.style.display = t === tab ? 'block' : 'none';
+    if (btn)   btn.classList.toggle('active', t === tab);
+  });
+}
+
+// Copy the active SDK Input tab (Pages → one TSV line per page)
+function copySdkInTab() {
+  const active = ['create', 'hex', 'pages'].find(t => document.getElementById(`sdkinpanel-${t}`)?.style.display !== 'none');
+  if (!active) return;
+  const panel = document.getElementById(`sdkinpanel-${active}`);
+  const text = active === 'pages'
+    ? [...panel.querySelectorAll('tbody tr:not(.rr-sep)')].map(tr => [...tr.cells].map(td => td.textContent).join('\t')).join('\n')
+    : [...panel.querySelectorAll('pre')].map(p => p.textContent).join('\n\n');
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('sdkin-copy-btn');
+    btn.innerHTML = icon('check') + ' Copied'; btn.style.color = 'var(--ok)';
+    setTimeout(() => { btn.textContent = 'Copy'; btn.style.color = ''; }, 1500);
+  });
 }
 
 async function renderOutput(f, payload) {
   const out          = document.getElementById('output');
   const sdkContent   = document.getElementById('sdk-content');
   const sdkLeftEl    = document.getElementById('sdk-left-content');
-  out.innerHTML        = '';
+  out.innerHTML        = modeBanner();   // Read result / Burn preview banner, always first
   sdkContent.innerHTML = '';
   sdkLeftEl.innerHTML  = '';
-  document.querySelector('main').classList.remove('sdk-closed');
-  document.querySelector('main').classList.add('sdk-input-closed');
+  applyModePanels();
 
   const payloadHex = Array.from(payload).map(b => b.toString(16).padStart(2,'0')).join('');
   const [sigResult, sdkOut] = await Promise.all([
@@ -1350,11 +2214,7 @@ async function renderOutput(f, payload) {
   const isInit    = f.id_product === 0x00000000;
   const isPlus    = f.id_tigertag === ID_TIGERTAG_PLUS && !isMaker;
 
-  const colorCount = (() => {
-    if (asp2E && (asp2E.color_count||1) > 1) return asp2E.color_count;
-    if (asp1E && (asp1E.color_count||1) > 1) return asp1E.color_count;
-    return 1;
-  })();
+  const colorCount = _colorCount(f);
 
   const c1hex = rgbToHex(f.c1r, f.c1g, f.c1b);
   const c2hex = rgbToHex(f.c2r, f.c2g, f.c2b);
@@ -1413,8 +2273,17 @@ async function renderOutput(f, payload) {
   addCard(out, 'Traceability', `<table class="tag-table">
     ${row('Manufactured', mfgDate)}
     ${row('Twin tag ID',  f.timestamp)}
+    ${row('Tag',          _tagLabel(f.tag_info || 0))}
     ${f.custom ? row('Message', `<em>"${esc(f.custom)}"</em>`) : ''}
   </table>`);
+
+  // validate() warnings from the SDK (server-side)
+  const _warnings = Array.isArray(sdkOut?.validate) ? sdkOut.validate : [];
+  if (_warnings.length) {
+    addCard(out, `${M('validate')}() · ${esc(SDK.label)}`, `<ul style="margin:0;padding-left:18px;color:var(--warn);font-size:13px;line-height:1.6">
+      ${_warnings.map(w => `<li>${esc(w)}</li>`).join('')}
+    </ul>`);
+  }
 
   // TigerTag+ cloud card
   if (isPlus) {
@@ -1422,8 +2291,8 @@ async function renderOutput(f, payload) {
     cloudSec.className = 'card card-full';
     cloudSec.innerHTML = `
       <div class="card-head" style="display:flex;align-items:center;justify-content:space-between">
-        <span id="cloud-head-title">☁ TigerTag+ · product_id=${f.id_product}</span>
-        <a href="${SDK_REPO}" target="_blank" style="font-size:10px;font-weight:500;color:var(--accent);text-decoration:none;opacity:.8">JS SDK ↗</a>
+        <span id="cloud-head-title">${icon('cloud')} TigerTag+ · product_id=${f.id_product}</span>
+        <a href="${esc(SDK.repo)}" target="_blank" style="font-size:10px;font-weight:500;color:var(--accent);text-decoration:none;opacity:.8">${esc(SDK.label)} ${icon('external', 11)}</a>
       </div>
       <div class="card-body" id="cloud-body"><p class="api-msg loading">Fetching from api.tigertag.io…</p></div>`;
     out.appendChild(cloudSec);
@@ -1433,13 +2302,14 @@ async function renderOutput(f, payload) {
       const headTitle = document.getElementById('cloud-head-title');
       if (!body) return;
       if (!data || data._error) {
-        body.innerHTML = `<p class="api-msg error">⚠ ${esc(data?._error||'No data')}</p>`;
+        body.innerHTML = `<p class="api-msg error">${icon('warn')} ${esc(data?._error||'No data')}</p>`;
         return;
       }
-      if (headTitle && data.title) headTitle.textContent = `☁ ${data.title}`;
+      if (headTitle && data.title) headTitle.innerHTML = `${icon('cloud')} ${esc(data.title)}`;
 
-      const imgSrc  = data.images?.main_src || '';
-      const logoSrc = data.brand_logo || '';
+      const localA  = PRESET_ASSETS[data.id] || {};
+      const imgSrc  = localA.img  || data.images?.main_src || '';
+      const logoSrc = localA.logo || data.brand_logo || '';
       const fil     = data.filament || {};
       const nozzle  = data.nozzle   || {};
       const bed     = data.bed      || {};
@@ -1461,9 +2331,9 @@ async function renderOutput(f, payload) {
       const chipDiffs = Array.isArray(data._diffs) ? data._diffs : [];
       const updateBadge = chipDiffs.length > 0
         ? `<div style="display:flex;align-items:center;gap:7px;margin-bottom:12px;padding:8px 10px;background:rgba(249,115,22,.1);border:1px solid rgba(249,115,22,.35);border-radius:8px">
-             <span style="font-size:15px">⚠</span>
+             <span style="font-size:15px">${icon('warn', 15)}</span>
              <span style="font-size:12px;font-weight:600;color:var(--warn)">${chipDiffs.length} field${chipDiffs.length>1?'s differ':' differs'} — chip needs reprogramming</span>
-             <span style="margin-left:auto;font-size:11px;color:var(--muted);font-style:italic">see diffApi()</span>
+             <span style="margin-left:auto;font-size:11px;color:var(--muted);font-style:italic">see ${M('diffApi')}()</span>
            </div>` : '';
 
       body.innerHTML = `
@@ -1491,91 +2361,40 @@ async function renderOutput(f, payload) {
   // ── SDK Output data — from /api/parse (real server-side SDK) ────────────────
   const SIG_CLS   = { valid:'valid', invalid:'invalid', unsigned:'unsigned' };
   const SIG_ICONS = {
-    valid:    '✅ VALID',    invalid:   '❌ INVALID',  unsigned:  '⬜ NOT SIGNED',
-    no_uid:   '⚠ UID unavailable', no_key: '⚠ No public key', no_crypto: '⚠ crypto unavailable',
+    valid:    icon('check') + ' VALID', invalid: icon('x') + ' INVALID', unsigned: icon('square') + ' NOT SIGNED',
+    no_uid:   icon('warn') + ' UID unavailable', no_key: icon('warn') + ' No public key', no_crypto: icon('warn') + ' crypto unavailable',
   };
   const sv      = sdkOut?.verify || {};
   const svCls   = SIG_CLS[sv.status] || 'no_uid';
   const svLabel = (SIG_ICONS[sv.status] || sigResult.label) + (sv.detail ? ` — ${sv.detail}` : '');
 
-  const prettyText  = sdkOut?.pretty              || '(server unavailable — is tools/server.js running?)';
-  const descText    = sdkOut?.describe            || '(server unavailable — is tools/server.js running?)';
+  const prettyText  = sdkOut?.pretty              || `(server unavailable — is ${SDK.server} running?)`;
+  const descText    = sdkOut?.describe            || `(server unavailable — is ${SDK.server} running?)`;
   const verifyJson  = sdkOut?.verify   != null    ? JSON.stringify(sdkOut.verify,   null, 2) : '{}';
   const rawDictJson = sdkOut?.raw_dict != null    ? JSON.stringify(sdkOut.raw_dict, null, 2) : '{}';
   const dictJson    = sdkOut?.dict     != null    ? JSON.stringify(sdkOut.dict,     null, 2) : '{}';
 
-  // SDK Input — exact kwargs for TigerTag.create()
-  // Required fields always present; optional fields omitted when at default (0 / empty).
-  const _o = (v) => v || undefined;  // omit if 0 / falsy
-  const _sdkInputRaw = {
-    // ── Required ────────────────────────────────────────────────────────────
-    productId:        f.id_product >>> 0,
-    idMaterial:       f.id_material,
-    idAspect1:        f.id_aspect1,
-    idType:           f.id_type,
-    idBrand:          f.id_brand,
-    color1R:          f.c1r,
-    color1G:          f.c1g,
-    color1B:          f.c1b,
-    color1A:          f.c1a,
-    measure:          f.measure,
-    idUnit:           f.id_unit,
-    // ── Optional — omitted when 0 / inactive ────────────────────────────────
-    idAspect2:        _o(f.id_aspect2),
-    idDiameter:       _o(f.id_diameter),
-    color2R: colorCount >= 2 ? f.c2r : undefined,
-    color2G: colorCount >= 2 ? f.c2g : undefined,
-    color2B: colorCount >= 2 ? f.c2b : undefined,
-    color3R: colorCount >= 3 ? f.c3r : undefined,
-    color3G: colorCount >= 3 ? f.c3g : undefined,
-    color3B: colorCount >= 3 ? f.c3b : undefined,
-    measureAvailable: f.avail > 0 ? f.avail : undefined,
-    nozzleTempMin:    _o(f.nozzle_min),
-    nozzleTempMax:    _o(f.nozzle_max),
-    dryTemp:          _o(f.dry_temp),
-    dryTime:          _o(f.dry_time),
-    bedTempMin:       _o(f.bed_min),
-    bedTempMax:       _o(f.bed_max),
-    tdRaw:            _o(f.td_raw),
-    customMessage:    _o(f.custom),
-  };
-  // drop undefined so JSON.stringify gives a clean, copy-pasteable object (keep null: explicit)
-  const sdkInputObj  = Object.fromEntries(Object.entries(_sdkInputRaw).filter(([,v]) => v !== undefined));
-  const sdkInputText = `const tag = TigerTag.create(${JSON.stringify(sdkInputObj, null, 2)});`;
-
-  // ── SDK left panel (Input) ────────────────────────────────────────────────
-  sdkLeftEl.innerHTML = `
-    <div style="position:sticky;top:0;z-index:2;background:var(--card)">
-      <div class="sdk-panel-header">
-        <span>SDK Input</span>
-        <button class="sdk-copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('sdk-left-create').textContent).then(()=>{this.textContent='✓ Copied';this.style.color='var(--ok)';setTimeout(()=>{this.textContent='Copy';this.style.color=''},1500)})">Copy</button>
-      </div>
-      <div id="sdk-left-burn-uids" style="display:none;padding:6px 14px 8px;font-size:11px;font-family:monospace;font-weight:600;color:var(--text);border-top:1px solid var(--border);letter-spacing:.03em"></div>
-    </div>
-    <pre id="sdk-left-create" class="json-block">${esc(sdkInputText)}</pre>
-    <div id="sdk-left-returns-wrap" style="display:none">
-      <div style="padding:7px 14px 5px;border-top:1px solid var(--border);background:var(--card)">
-        <span style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.04em">→ Burn result</span>
-      </div>
-      <pre id="sdk-left-returns" class="json-block"></pre>
-    </div>`;
+  // ── SDK left panel (Input): create() | HEX | Pages ──────────────────────
+  renderSdkInput(f, payload);
 
   // SDK right panel
   const sdkWrap = document.createElement('div');
   sdkWrap.innerHTML = `
     <div style="position:sticky;top:0;z-index:2;background:var(--card)">
       <div class="sdk-panel-header">
-        <span>SDK Output</span>
+        <span>SDK Output${_twin ? ` #${_twin.shown + 1}` : ''}${_mode === 'read' ? ' · read' : ' · preview'}</span>
+        ${_twin ? `<span style="display:flex;gap:4px;margin-left:auto;margin-right:6px">${_twin.items.map((it, k) =>
+          `<button class="sdk-copy-btn" style="${k === _twin.shown ? 'color:var(--accent);border-color:var(--accent)' : ''}" title="${esc(it.reader.name)}${it.reader.uid ? ' — UID ' + esc(it.reader.uid) : ''}" onclick="showTwin(${k})">#${k + 1}</button>`).join('')}</span>` : ''}
         <button class="sdk-copy-btn" id="sdk-copy-btn" onclick="copySdkTab()">Copy</button>
       </div>
       <div class="sdk-tab-bar">
         <button class="sdk-tab active" id="sdktab-pretty"   onclick="switchSdkTab('pretty')">pretty()</button>
         <button class="sdk-tab"        id="sdktab-describe" onclick="switchSdkTab('describe')">describe()</button>
         <button class="sdk-tab"        id="sdktab-verify"   onclick="switchSdkTab('verify')">verify()</button>
-        <button class="sdk-tab"        id="sdktab-raw"      onclick="switchSdkTab('raw')">toRawDict()</button>
-        <button class="sdk-tab"        id="sdktab-dict"     onclick="switchSdkTab('dict')">toDict()</button>
-        ${isPlus?`<button class="sdk-tab" id="sdktab-rawapi" onclick="switchSdkTab('rawapi')">☁ rawApi()</button>`:'' }
-        ${isPlus?`<button class="sdk-tab" id="sdktab-diff"   onclick="switchSdkTab('diff')">☁ diffApi()</button>`:'' }
+        <button class="sdk-tab"        id="sdktab-raw"      onclick="switchSdkTab('raw')">${M('toRawDict')}()</button>
+        <button class="sdk-tab"        id="sdktab-dict"     onclick="switchSdkTab('dict')">${M('toDict')}()</button>
+        ${isPlus?`<button class="sdk-tab" id="sdktab-rawapi" onclick="switchSdkTab('rawapi')">${icon('cloud')} ${M('rawApi')}()</button>`:'' }
+        ${isPlus?`<button class="sdk-tab" id="sdktab-diff"   onclick="switchSdkTab('diff')">${icon('cloud')} ${M('diffApi')}()</button>`:'' }
       </div>
     </div>
     <div id="sdkpanel-pretty"   style="display:block"><pre class="json-block">${esc(prettyText)}</pre></div>
@@ -1596,7 +2415,7 @@ async function renderOutput(f, payload) {
 function renderDiff(container, f, data) {
   const diffs = (Array.isArray(data._diffs)?data._diffs:[]).map(d=>[d.field,d.chip_value,d.api_value]);
   if (diffs.length === 0) {
-    container.innerHTML = `<div style="display:flex;align-items:center;gap:8px;color:var(--ok);font-style:normal;font-weight:600"><span style="font-size:18px">✓</span> Chip is in sync with the API — no update needed.</div>`;
+    container.innerHTML = `<div style="display:flex;align-items:center;gap:8px;color:var(--ok);font-style:normal;font-weight:600"><span style="font-size:18px">${icon('check', 18)}</span> Chip is in sync with the API — no update needed.</div>`;
     return;
   }
   const sw = (field,val) => {
@@ -1613,7 +2432,7 @@ function renderDiff(container, f, data) {
   container.style.fontStyle = 'normal';
   container.innerHTML = `
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-      <span style="font-size:16px">⚠</span>
+      <span style="font-size:16px">${icon('warn', 16)}</span>
       <span style="font-weight:600;color:var(--warn)">${diffs.length} field${diffs.length>1?'s differ':' differs'} — chip may need reprogramming</span>
     </div>
     <table style="width:100%;border-collapse:collapse">
@@ -1644,7 +2463,7 @@ function copySdkTab() {
   const text  = panel.querySelector('pre')?.textContent || panel.querySelector('p')?.textContent || '';
   navigator.clipboard.writeText(text).then(() => {
     const btn = document.getElementById('sdk-copy-btn');
-    btn.textContent  = '✓ Copied';
+    btn.innerHTML    = icon('check') + ' Copied';
     btn.style.color  = 'var(--ok)';
     btn.style.borderColor = 'var(--ok)';
     setTimeout(() => { btn.textContent='Copy'; btn.style.color=''; btn.style.borderColor=''; }, 1500);
@@ -1671,42 +2490,15 @@ function importBin(evt) {
   const reader = new FileReader();
   reader.onload = async e => {
     const f = parseBuffer(e.target.result);
+    _readView = { f, payload: new Uint8Array(e.target.result), source: `file ${file.name}` };
+    _formSigned = !!f.sig_r;
+    setMode('read', { render: false });   // Import .bin = Read result
+    _twin = null;   // a loaded .bin leaves twin tag mode's generated plan
     _lastPayload = new Uint8Array(e.target.result);
     document.getElementById('export-btn').disabled = false;
     updateBurnBtn();
 
-    _currentVersion = f.id_tigertag>>>0;
-    document.querySelectorAll('.seg-btn').forEach(b =>
-      b.classList.toggle('active', (+b.dataset.val>>>0) === _currentVersion)
-    );
-    document.getElementById('mode-init').style.display     = (_currentVersion===ID_TIGERTAG_INIT)?'block':'none';
-    document.getElementById('mode-plus').style.display     = (_currentVersion===ID_TIGERTAG_PLUS)?'block':'none';
-    document.getElementById('mode-standard').style.display = (_currentVersion===ID_TIGERTAG)     ?'block':'none';
-
-    document.getElementById('f-product-id').value    = f.id_product;
-    setSelectVal('f-material', f.id_material);
-    setSelectVal('f-brand',    f.id_brand);
-    setSelectVal('f-type',     f.id_type);
-    setSelectVal('f-diameter', f.id_diameter);
-    repopulateAspects(f.id_aspect1, f.id_aspect2);
-    document.getElementById('f-color1').value = rgbToHex(f.c1r,f.c1g,f.c1b);
-    document.getElementById('f-alpha1').value = f.c1a;
-    document.getElementById('alpha1-val').textContent = f.c1a;
-    document.getElementById('f-color2').value = rgbToHex(f.c2r,f.c2g,f.c2b);
-    document.getElementById('f-color3').value = rgbToHex(f.c3r,f.c3g,f.c3b);
-    document.getElementById('f-td').value         = f.td_raw>0?(f.td_raw/10).toFixed(1):0;
-    document.getElementById('f-nozzle-min').value = f.nozzle_min;
-    document.getElementById('f-nozzle-max').value = f.nozzle_max;
-    document.getElementById('f-bed-min').value    = f.bed_min;
-    document.getElementById('f-bed-max').value    = f.bed_max;
-    document.getElementById('f-dry-temp').value   = f.dry_temp;
-    document.getElementById('f-dry-time').value   = f.dry_time;
-    setSelectVal('f-unit', f.id_unit);
-    _setAvail(f.measure, f.avail !== f.measure ? f.avail : null);
-    document.getElementById('f-msg').value   = f.custom;
-    if (f.uid) document.getElementById('f-uid').value = f.uid;
-    updateColorGroups();
-    renderColorPreview();
+    _fillFormFromTag(f);
     await renderOutput(f, _lastPayload);
     evt.target.value = '';
   };
@@ -1720,9 +2512,15 @@ function updateBurnBtn() {
   const rBtn = document.getElementById('rawread-btn');
   if (!btn) return;
   const hasCard = [..._readerState.values()].some(r => r.hasCard);
-  const wsOk    = _ws !== null && _ws.readyState === 1 /* OPEN */;
-  btn.disabled  = !(_lastPayload && hasCard && wsOk);
+  const wsOk    = _nfcOnline;
+  if (!btn.textContent.includes('Burning')) {
+    btn.disabled = !(_mode === 'burn' && _burnView && hasCard && wsOk);
+    btn.title    = _mode === 'burn'
+      ? `Write the preview (pages 0x04–0x27; ${BURN_SIG_NOTE}) to every reader with a chip`
+      : 'Switch to Burn mode to write a tag';
+  }
   if (rBtn) rBtn.disabled = !(hasCard && wsOk);
+  syncTwinFields();
 }
 
 // ── Raw Hex Reader ─────────────────────────────────────────────────────────────
@@ -1759,7 +2557,7 @@ function _buildFieldLabel(page, chunk) {
     case 10: return `${_fv(b0<<8|b1)} nozzle_min${dot}${_fv(b2<<8|b3)} nozzle_max`;
     case 11: return `${_fv(b0)} dry_temp${dot}${_fv(b1)} dry_time${dot}${_fv(b2)} bed_min${dot}${_fv(b3)} bed_max`;
     case 12: return `${_fv((b0<<24|b1<<16|b2<<8|b3)>>>0)} timestamp`;
-    case 13: return `${_fv(b0)} R2${dot}${_fv(b1)} G2${dot}${_fv(b2)} B2`;
+    case 13: return `${_fv(b0)} R2${dot}${_fv(b1)} G2${dot}${_fv(b2)} B2${dot}${_fv('0x' + b3.toString(16).padStart(2, '0').toUpperCase())} tag ${b3 ? `${_tagIndexOf(b3) || '?'} of ${_tagCountOf(b3) || '?'}` : 'unknown'}`;
     case 14: return `${_fv(b0)} R3${dot}${_fv(b1)} G3${dot}${_fv(b2)} B3`;
     case 15: return `${_fv(b0<<8|b1)} td_raw`;
     case 23: return `${_fv((b0<<16|b1<<8|b2)>>>0)} measure_available`;
@@ -1899,7 +2697,7 @@ function rrCopy(btn, panelId) {
     })
     .join('\n');
   navigator.clipboard.writeText(hex).then(() => {
-    btn.textContent = '✓ Copied!';
+    btn.innerHTML = icon('check') + ' Copied';
     btn.classList.add('copied');
     setTimeout(() => {
       btn.textContent = 'Copy hex';
@@ -1917,40 +2715,89 @@ function closeRawRead() {
 }
 
 function rawRead() {
-  if (!_ws || _ws.readyState !== 1) return;
+  if (!_nfcOnline) return;
   // Clear previous results from all panels
   document.querySelectorAll('.rr-panel-body').forEach(b => {
     b.innerHTML = '<div class="rr-status">Reading…</div>';
   });
   openRawRead();
-  const reqId = `rr_${Date.now()}`;
-  _ws.send(JSON.stringify({ type: 'read:request', reqId }));
+  nfcPost('/api/nfc/read', { reqId: `rr_${Date.now()}` });
+}
+
+// POST an NFC request (read / burn); the response lists the messages to handle
+async function nfcPost(url, body) {
+  try {
+    const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const out = await r.json();
+    if (!r.ok || out.error) throw new Error(out.error || `HTTP ${r.status}`);
+    for (const m of out.messages || []) await handleNfcMessage(m);
+  } catch (e) {
+    nfcToast(`${url.split('/').pop()}: ${e.message}`);
+    const done = url.endsWith('/burn') ? 'burn:done' : 'read:done';
+    await handleNfcMessage({ type: done, reqId: body.reqId });
+  }
+}
+
+function nfcToast(text, ok = false) {
+  const t = document.getElementById('nfc-toast');
+  if (!t) return;
+  t.innerHTML = icon(ok ? 'check' : 'warn') + ' ' + esc(text);
+  t.className = ok ? 'ok' : '';
+  t.style.display = 'block';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => { t.style.display = 'none'; }, 6000);
 }
 
 async function burnRfid() {
-  // Ensure latest form values are encoded
-  if (!_lastPayload) { await generate(); }
-  if (!_lastPayload) return;
-  if (!_ws || _ws.readyState !== 1) return;
+  if (_mode !== 'burn') return;   // Read mode never writes
+  if (!_nfcOnline) return;
+  const targets = twinReaders();
+  if (!targets.length) return;
 
-  const activeReaders = [..._readerState.values()].filter(r => r.hasCard);
-  if (!activeReaders.length) return;
+  if (targets.length >= 2) {
+    // Twin tag: (re)build one payload per reader unless the current plan matches
+    const same = _twin && _twin.n === targets.length
+      && targets.every((r, k) => _twin.items[k].reader.id === r.id);
+    if (!same) await generate();
+    if (!_twin) return;
+    await burnTwin();
+    return;
+  }
 
-  _burnPending = activeReaders.length;
-  _burnOkCount = 0;
-  _burnTotal   = activeReaders.length;
-  _burnUids    = [];
+  // Burn writes the stored preview — never the last payload read from a chip
+  if (!_burnView || _burnView.twin) { await generate(); }
+  if (!_burnView) return;
 
-  // Burn = write flow: show SDK Input (what was sent to chip), hide SDK Output (read result)
-  const _main = document.querySelector('main');
-  _main.classList.remove('sdk-input-closed');
-  _main.classList.add('sdk-closed');
+  _burnStart(targets.length, 1);
+  const hex = _burnHex(_burnView.payload);   // full 144-byte image, pages 0x04–0x27
+  await nfcPost('/api/nfc/burn', { reqId: Date.now(), payload: hex });
+}
+
+// Twin tag burn: each reader gets its OWN payload (same data and Timestamp, chip i of n)
+async function burnTwin() {
+  const list = _twin.items.map((it, k) =>
+    `• #${k + 1} ${it.reader.name}${it.reader.uid ? ' — UID ' + it.reader.uid : ''} → tag ${k + 1} of ${_twin.n}`).join('\n');
+  if (!confirm(`Write a twin tag on this ${_itemNoun(_twin.items[0].f.id_type)}: ${_twin.n} tags, same data and Timestamp, one tag index per reader?\n\n${list}\n\nPages 0x04–0x27 of each chip are overwritten (${BURN_SIG_NOTE}${_formSigned ? '; ' + BURN_SIG_NOT_COPIED : ''}).`)) return;
+  _burnStart(_twin.n, _twin.n);
+  const reqId = Date.now();
+  for (const it of _twin.items) {
+    const hex = _burnHex(it.payload);   // full 144-byte image, pages 0x04–0x27
+    await nfcPost('/api/nfc/burn', { reqId, reader: it.reader.id, payload: hex });
+  }
+}
+
+// Reset the burn counters; `requests` = burn:write messages sent (one burn:done each)
+function _burnStart(total, requests) {
+  _burnPending     = total;
+  _burnOkCount     = 0;
+  _burnTotal       = total;
+  _burnUids        = [];
+  _burnDonePending = requests;
+
+  applyModePanels();   // Burn: SDK Input open (what was sent to the chip)
 
   const btn = document.getElementById('burn-btn');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Burning…'; }
-
-  const hex = Array.from(_lastPayload).map(b => b.toString(16).padStart(2, '0')).join('');
-  _ws.send(JSON.stringify({ type: 'burn:write', reqId: Date.now(), payload: hex }));
+  if (btn) { btn.disabled = true; btn.innerHTML = icon('hourglass') + ' Burning…'; }
 }
 
 // ── Export ─────────────────────────────────────────────────────────────────────
@@ -1973,7 +2820,11 @@ function nfcBarRender() {
   const bar = document.getElementById('nfc-bar');
   if (!bar) return;
   if (!_readerState.size) {
-    bar.innerHTML = '<span class="nfc-unavail" title="Plug in an ACR122U — requires: npm install ws nfc-pcsc">No reader</span>';
+    const hint = !_nfcOnline ? `Start the playground server: ${SDK.server}`
+               : !_nfcAvailable ? `Reader support not installed — run: ${_nfcHint}`
+               : 'Plug in an ACS ACR122U (or any PC/SC reader)';
+    bar.innerHTML = `<span class="nfc-unavail" title="${esc(hint)}">${_nfcOnline && !_nfcAvailable ? 'NFC unavailable' : 'No reader'}</span>`;
+    updateBurnBtn();
     return;
   }
   bar.innerHTML = '';
@@ -1991,232 +2842,321 @@ function nfcBarRender() {
   updateBurnBtn();
 }
 
+// ── Chips on the readers: how many, same item, same data, numbering ───────────
+const _scans = new Map();   // readerId → { reader, uid, bytes } — last chip read on each reader
+const _SCAN_FIELDS = [
+  [0, 4, 'ID TigerTag'], [4, 8, 'ID Product'], [8, 10, 'Material'], [10, 11, 'Aspect 1'],
+  [11, 12, 'Aspect 2'], [12, 13, 'Type'], [13, 14, 'Diameter'], [14, 16, 'Brand'],
+  [16, 20, 'Color 1'], [20, 23, 'Measure'], [23, 24, 'Unit'], [24, 26, 'Nozzle min'],
+  [26, 28, 'Nozzle max'], [28, 29, 'Dry temp'], [29, 30, 'Dry time'], [30, 31, 'Bed min'],
+  [31, 32, 'Bed max'], [32, 36, 'Timestamp'], [36, 39, 'Color 2'], [40, 43, 'Color 3'],
+  [43, 44, 'reserved +43'], [44, 46, 'HueForge TD'], [46, 48, 'reserved +46'],
+  [48, 76, 'Custom message'], [76, 79, 'Measure available'], [79, 80, 'reserved +79'],
+];
+
+function recordScan(msg) {
+  const bytes = new Uint8Array(msg.payload.match(/.{2}/g).map(h => parseInt(h, 16)));
+  _scans.set(msg.reader.id, { reader: msg.reader, uid: msg.uid, bytes, msg });
+}
+
+function forgetScan(readerId) { _scans.delete(readerId); }
+
+function renderScanCheck() {
+  const out = document.getElementById('output');
+  document.getElementById('scan-check')?.remove();
+  if (_mode !== 'read') return;   // Burn mode never shows what the readers read
+  const chips = [..._scans.values()].sort((a, b) => a.reader.name.localeCompare(b.reader.name));
+  if (!out || !chips.length) return;
+
+  const n   = chips.length;
+  const ci  = c => c.bytes[39] || 0;
+  const cnt = c => _tagCountOf(ci(c));
+  const idx = c => _tagIndexOf(ci(c));
+  const ts  = c => ((c.bytes[32] << 24) | (c.bytes[33] << 16) | (c.bytes[34] << 8) | c.bytes[35]) >>> 0;
+  const pos = c => ci(c) ? `${idx(c) || '?'}/${cnt(c) || '?'}` : 'unknown';
+  const OK   = t => `<div style="color:var(--ok)">${icon('check')} ${t}</div>`;
+  const WARN = t => `<div style="color:var(--warn)">${icon('warn')} ${t}</div>`;
+  const BAD  = t => `<div style="color:var(--err)">${icon('x')} ${t}</div>`;
+  const checks = [];
+
+  // Same item — the Timestamp is the twin tag ID
+  const sameItem = new Set(chips.map(ts)).size === 1;
+  if (n >= 2) checks.push(sameItem
+    ? OK(`Same item · ${ts(chips[0])}`)
+    : BAD(`Different items · ${chips.map(ts).join(' / ')}`));
+
+  // Same data — every byte of the 80-byte user area, except the tag index/count byte
+  if (n >= 2) {
+    const diff = _SCAN_FIELDS.filter(([a, b]) =>
+      chips.some(c => c.bytes.slice(a, b).some((v, k) => v !== chips[0].bytes[a + k]))).map(f => f[2]);
+    checks.push(diff.length
+      ? BAD(`Data differs: ${diff.join(', ')}`)
+      : OK('Identical data'));
+  }
+
+  // Numbering — tag index / count on each chip
+  const known = chips.filter(ci);
+  if (!known.length) {
+    checks.push(WARN('Tag index / count unknown'));
+  } else {
+    const counts = new Set(known.map(cnt));
+    const idxs   = known.map(idx);
+    const total  = counts.size === 1 ? [...counts][0] : null;
+    const problems = [];
+    if (known.length < n) problems.push(`${n - known.length} chip(s) without tag index / count`);
+    if (counts.size > 1) problems.push(`the chips disagree on the tag count (${[...counts].join(' vs ')})`);
+    if (idxs.some(i => !i)) problems.push('a chip has a tag count but no tag index');
+    const dup = idxs.filter((i, k) => i && idxs.indexOf(i) !== k);
+    if (dup.length) problems.push(`tag index ${[...new Set(dup)].join(', ')} appears on more than one chip`);
+    if (total && idxs.some(i => i > total)) problems.push(`a tag index is higher than the tag count (${total})`);
+    if (problems.length) {
+      checks.push(BAD(`Numbering: ${problems.join(' · ')}`));
+    } else if (total === n) {
+      checks.push(OK(`Numbering ${chips.map(pos).join(' + ')}`));
+    } else if (total > n) {
+      const missing = Array.from({ length: total }, (_, k) => k + 1).filter(i => !idxs.includes(i));
+      checks.push(WARN(`${n} of ${total} tags seen — tag ${missing.map(i => `${i}/${total}`).join(', ')} not on a reader`));
+    } else {
+      checks.push(BAD(`${n} chips seen but the tags say ${total}`));
+    }
+  }
+
+  const allOk = checks.every(c => c.includes('var(--ok)'));
+  const verdict = n === 1
+    ? (cnt(chips[0]) === 1 && idx(chips[0]) === 1 ? OK('Single tag · 1/1') : `<div>1 chip · ${pos(chips[0])}</div>`)
+    : (allOk ? OK(`Twin tag complete · ${n} chips`) : `<div>${n} chips</div>`);
+
+  const rows = chips.map((c, k) => `<tr>
+      <td style="color:var(--muted);width:28px">#${k + 1}</td>
+      <td>${esc(c.reader.name)}<div style="font-size:11px;color:var(--muted);font-family:ui-monospace,Menlo,monospace">UID ${esc(c.uid || '?')}</div></td>
+      <td style="text-align:right;font-size:18px;font-weight:700;color:${ci(c) ? 'var(--accent)' : 'var(--muted)'};white-space:nowrap">${pos(c)}</td>
+    </tr>`).join('');
+
+  const el = document.createElement('div');
+  el.className = 'card card-full';
+  el.id = 'scan-check';
+  el.innerHTML = `<div class="card-head">Chips on the readers${infoBubble('The chips currently on the readers, checked together:<br><b>Same item</b> — every tag carries the same Timestamp (the twin tag ID).<br><b>Identical data</b> — every byte of the 80-byte user area matches, except the tag index / count byte (+39).<br><b>Numbering</b> — tag index / count on each chip (index/count, e.g. 1/2 + 2/2). <b>Unknown</b> = 0x00, written before protocol v2.2.', { right: true })}</div>
+    <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+      <div style="font-size:14px;font-weight:700">${verdict}</div>
+      <table class="tag-table">${rows}</table>
+      <div style="font-size:12.5px;display:flex;flex-direction:column;gap:4px">${checks.join('')}</div>
+    </div>`;
+  const banner = out.querySelector('.mode-banner');
+  if (banner) banner.after(el); else out.prepend(el);
+}
+
 async function importFromScan(scanData) {
   // scanData: { uid (hex uppercase), payload (hex), pretty, verify, raw }
   const bytes = new Uint8Array(scanData.payload.match(/.{2}/g).map(h => parseInt(h, 16)));
   const f = parseBuffer(bytes.buffer);
   f.uid = scanData.uid;
 
+  _readView = { f, payload: bytes, source: `${scanData.reader?.name || 'reader'} · UID ${scanData.uid}`, readerId: scanData.reader?.id };
+  _formSigned = !!f.sig_r;
+  _twin = null;   // a scanned chip leaves twin tag mode's generated plan
   _lastPayload = bytes;
   document.getElementById('export-btn').disabled = false;
   updateBurnBtn();
 
-  _currentVersion = f.id_tigertag >>> 0;
-  document.querySelectorAll('.seg-btn').forEach(b =>
-    b.classList.toggle('active', (+b.dataset.val >>> 0) === _currentVersion)
-  );
-  document.getElementById('mode-init').style.display     = (_currentVersion === ID_TIGERTAG_INIT) ? 'block' : 'none';
-  document.getElementById('mode-plus').style.display     = (_currentVersion === ID_TIGERTAG_PLUS) ? 'block' : 'none';
-  document.getElementById('mode-standard').style.display = (_currentVersion === ID_TIGERTAG)      ? 'block' : 'none';
-
-  document.getElementById('f-product-id').value = f.id_product;
-  setSelectVal('f-material', f.id_material);
-  setSelectVal('f-brand',    f.id_brand);
-  setSelectVal('f-type',     f.id_type);
-  setSelectVal('f-diameter', f.id_diameter);
-  repopulateAspects(f.id_aspect1, f.id_aspect2);
-  document.getElementById('f-color1').value          = rgbToHex(f.c1r, f.c1g, f.c1b);
-  document.getElementById('f-alpha1').value          = f.c1a;
-  document.getElementById('alpha1-val').textContent  = f.c1a;
-  document.getElementById('f-color2').value          = rgbToHex(f.c2r, f.c2g, f.c2b);
-  document.getElementById('f-color3').value          = rgbToHex(f.c3r, f.c3g, f.c3b);
-  document.getElementById('f-td').value              = f.td_raw > 0 ? (f.td_raw / 10).toFixed(1) : 0;
-  document.getElementById('f-nozzle-min').value      = f.nozzle_min;
-  document.getElementById('f-nozzle-max').value      = f.nozzle_max;
-  document.getElementById('f-bed-min').value         = f.bed_min;
-  document.getElementById('f-bed-max').value         = f.bed_max;
-  document.getElementById('f-dry-temp').value        = f.dry_temp;
-  document.getElementById('f-dry-time').value        = f.dry_time;
-  setSelectVal('f-unit', f.id_unit);
-  _setAvail(f.measure, f.avail !== f.measure ? f.avail : null);
-  document.getElementById('f-msg').value   = f.custom;
-  if (f.uid) document.getElementById('f-uid').value = f.uid;
-  updateColorGroups();
-  renderColorPreview();
+  _fillFormFromTag(f);
+  syncTwinFields();   // two readers with a chip → re-lock count / index
   await renderOutput(f, _lastPayload);
 }
 
-function initWebSocket() {
-  const port  = location.port || '7432';
-  const wsUrl = `ws://localhost:${port}`;
-  let ws, retryTimer;
+// ── NFC events: Server-Sent Events from GET /api/nfc/events (same on both SDK servers) ──
+async function handleNfcMessage(msg) {
+  switch (msg.type) {
 
-  function connect() {
-    try { ws = new WebSocket(wsUrl); } catch { return; }
-    _ws = ws;
+    case 'readers:status':
+      _nfcAvailable = !!msg.nfc;
+      _nfcHint = msg.hint || '';
+      _readerState.clear();
+      for (const r of msg.readers) _readerState.set(r.id, r);
+      nfcBarRender();
+      if (msg.error) nfcToast(`PC/SC: ${msg.error}`);
+      break;
 
-    ws.onopen = () => { updateBurnBtn(); };
+    case 'reader:connected':
+      _readerState.set(msg.reader.id, { ...msg.reader, hasCard: false });
+      nfcBarRender();
+      break;
 
-    ws.onmessage = async (ev) => {
-      let msg;
-      try { msg = JSON.parse(ev.data); } catch { return; }
+    case 'reader:disconnected':
+      _readerState.delete(msg.reader.id);
+      forgetScan(msg.reader.id);
+      nfcBarRender();
+      await afterChipGone(msg.reader.id);
+      if (_mode === 'burn' && _burnView) await renderOutput(_burnView.f, _burnView.payload);   // refresh targets
+      break;
 
-      switch (msg.type) {
-
-        case 'readers:status':
-          _readerState.clear();
-          for (const r of msg.readers) _readerState.set(r.id, r);
-          if (!msg.nfc) {
-            document.getElementById('nfc-bar').innerHTML =
-              '<span class="nfc-unavail" title="Run: npm install ws nfc-pcsc">NFC unavailable</span>';
-          } else {
-            nfcBarRender();
-          }
-          break;
-
-        case 'reader:connected':
-          _readerState.set(msg.reader.id, { ...msg.reader, hasCard: false });
-          nfcBarRender();
-          break;
-
-        case 'reader:disconnected':
-          _readerState.delete(msg.reader.id);
-          nfcBarRender();
-          break;
-
-        case 'card:detected': {
-          // Cancel any pending card:removed debounce for this reader
-          clearTimeout(_cardRemoveTimers.get(msg.reader.id));
-          _cardRemoveTimers.delete(msg.reader.id);
-          const r = _readerState.get(msg.reader.id);
-          if (r) r.hasCard = true;
-          nfcBarRender();
-          await importFromScan(msg);
-          break;
+    case 'card:detected': {
+      // Cancel any pending card:removed debounce for this reader
+      clearTimeout(_cardRemoveTimers.get(msg.reader.id));
+      _cardRemoveTimers.delete(msg.reader.id);
+      const r = _readerState.get(msg.reader.id);
+      if (r) { r.hasCard = true; r.uid = msg.uid; }
+      nfcBarRender();
+      recordScan(msg);
+      if (_mode === 'read') {            // Burn mode: the chip is only a target, the preview stays
+        await importFromScan(msg);
+        renderScanCheck();
+      } else {
+        // Burn mode: the chip is only a target — but keep the Read view current (e.g. after a burn)
+        if (_readView && _readView.readerId === msg.reader.id) {
+          const bytes = new Uint8Array(msg.payload.match(/.{2}/g).map(h => parseInt(h, 16)));
+          const f = parseBuffer(bytes.buffer);
+          f.uid = msg.uid;
+          _readView = { ..._readView, f, payload: bytes };
         }
+        if (_burnView) await renderOutput(_burnView.f, _burnView.payload);   // refresh the banner's target list
+      }
+      break;
+    }
 
-        case 'card:removed': {
-          // Debounce: ACR122U fires card:removed on slight movement even when
-          // the chip is still present. Wait 1500 ms before marking hasCard=false.
-          clearTimeout(_cardRemoveTimers.get(msg.reader.id));
-          _cardRemoveTimers.set(msg.reader.id, setTimeout(() => {
-            const r = _readerState.get(msg.reader.id);
-            if (r) r.hasCard = false;
-            _cardRemoveTimers.delete(msg.reader.id);
-            nfcBarRender();
-          }, 1500));
-          break;
-        }
+    case 'card:removed': {
+      // Debounce: ACR122U fires card:removed on slight movement even when
+      // the chip is still present. Wait 1500 ms before marking hasCard=false.
+      clearTimeout(_cardRemoveTimers.get(msg.reader.id));
+      _cardRemoveTimers.set(msg.reader.id, setTimeout(async () => {
+        const r = _readerState.get(msg.reader.id);
+        if (r) { r.hasCard = false; r.uid = null; }
+        _cardRemoveTimers.delete(msg.reader.id);
+        forgetScan(msg.reader.id);
+        nfcBarRender();
+        await afterChipGone(msg.reader.id);
+        if (_mode === 'burn' && _burnView) await renderOutput(_burnView.f, _burnView.payload);   // refresh targets
+      }, 1500));
+      break;
+    }
 
-        case 'error':
-          console.warn('[NFC]', msg.reader?.name, msg.message);
-          break;
+    case 'error':
+      console.warn('[NFC]', msg.reader?.name, msg.message);
+      nfcToast(`${msg.reader?.name || 'NFC'}: ${msg.message}`);
+      break;
 
-        case 'burn:result': {
-          // Flash the reader chip in the NFC bar — green=ok, red=failed
-          const readerEl = document.getElementById('nfc-r-' + msg.reader.id.replace(/[^a-z0-9]/gi, '_'));
-          if (readerEl) {
-            readerEl.classList.add(msg.ok ? 'burn-ok' : 'burn-err');
-            // Show UID on the reader element for a few seconds
-            if (msg.uid) {
-              const prevTitle = readerEl.title;
-              readerEl.title = msg.ok
-                ? `✅ Written — UID: ${msg.uid}`
-                : `❌ Failed — UID: ${msg.uid}${msg.error ? '\n' + msg.error : ''}`;
-              setTimeout(() => { readerEl.classList.remove('burn-ok', 'burn-err'); readerEl.title = prevTitle; }, 4000);
-            } else {
-              setTimeout(() => readerEl.classList.remove('burn-ok', 'burn-err'), 3000);
-            }
-          }
-          _burnPending = Math.max(0, _burnPending - 1);
-          if (msg.ok) _burnOkCount++;
-          // Accumulate UID results for the done summary
-          if (!_burnUids) _burnUids = [];
-          _burnUids.push({ uid: msg.uid, ok: msg.ok, reader: msg.reader.name });
-          console.log(`[Burn] ${msg.ok ? '✅' : '❌'} ${msg.reader.name} — UID: ${msg.uid || '?'}${msg.error ? ' — ' + msg.error : ''}`);
-          break;
-        }
-
-        case 'read:result': {
-          const panelId = _ensureRRPanel(msg.reader.id, msg.reader.name);
-          const body    = document.querySelector(`#${panelId} .rr-panel-body`);
-          const uidEl   = document.getElementById(`${panelId}-uid`);
-          if (uidEl && msg.uid) uidEl.textContent = `UID: ${msg.uid}`;
-          body.innerHTML = '';
-          if (!msg.ok) {
-            body.innerHTML = `<div style="color:var(--err);font-size:12px">❌ ${msg.error || 'Read error'}</div>`;
-            break;
-          }
-          const bytesLabel = document.createElement('div');
-          bytesLabel.className = 'rr-status';
-          bytesLabel.textContent = `${msg.bytes} bytes — pages 4–${4 + msg.bytes/4 - 1}`;
-          body.appendChild(bytesLabel);
-          body.appendChild(_buildHexTable(msg.payload));
-          break;
-        }
-
-        case 'read:done': {
-          const rBtn = document.getElementById('rawread-btn');
-          if (rBtn) { rBtn.textContent = '🔬 Raw Read'; updateBurnBtn(); }
-          break;
-        }
-
-        case 'burn:done': {
-          const btn = document.getElementById('burn-btn');
-          if (btn) {
-            btn.textContent = _burnOkCount === _burnTotal
-              ? `✅ ${_burnOkCount}/${_burnTotal} written`
-              : `❌ ${_burnOkCount}/${_burnTotal} written`;
-            // Show UID(s) written in the SDK Input panel header area
-            if (_burnUids?.length) {
-              const uidLines = _burnUids.map(r =>
-                `${r.ok ? '✅' : '❌'} ${r.uid || '?'}`
-              ).join('   ');
-              const info = document.getElementById('sdk-left-burn-uids');
-              if (info) { info.textContent = uidLines; info.style.display = 'block'; }
-            }
-            // Reveal the Returns block — real SDK output from TigerTag.create()
-            const returnsWrap = document.getElementById('sdk-left-returns-wrap');
-            const returnsEl   = document.getElementById('sdk-left-returns');
-            if (returnsWrap && returnsEl) {
-              const burnResult = {
-                ok:    _burnOkCount === _burnTotal,
-                chips: _burnUids.map(r => Object.assign(
-                  { uid: r.uid || null, ok: r.ok },
-                  r.ok ? { pages_written: 20 } : { error: r.error || 'write failed' }
-                )),
-              };
-              returnsEl.textContent = JSON.stringify(burnResult, null, 2);
-              returnsWrap.style.display = 'block';
-            }
-            setTimeout(() => {
-              btn.textContent = '🔥 Burn';
-              updateBurnBtn();
-              _burnUids = [];
-              const info = document.getElementById('sdk-left-burn-uids');
-              if (info) info.style.display = 'none';
-            }, 4000);
-          }
-          break;
+    case 'burn:result': {
+      // Flash the reader chip in the NFC bar — green=ok, red=failed
+      const readerEl = document.getElementById('nfc-r-' + msg.reader.id.replace(/[^a-z0-9]/gi, '_'));
+      if (readerEl) {
+        readerEl.classList.add(msg.ok ? 'burn-ok' : 'burn-err');
+        // Show UID on the reader element for a few seconds
+        if (msg.uid) {
+          const prevTitle = readerEl.title;
+          readerEl.title = msg.ok
+            ? `Written — UID: ${msg.uid}`
+            : `Failed — UID: ${msg.uid}${msg.error ? '\n' + msg.error : ''}`;
+          setTimeout(() => { readerEl.classList.remove('burn-ok', 'burn-err'); readerEl.title = prevTitle; }, 4000);
+        } else {
+          setTimeout(() => readerEl.classList.remove('burn-ok', 'burn-err'), 3000);
         }
       }
-    };
+      _burnPending = Math.max(0, _burnPending - 1);
+      if (msg.ok) _burnOkCount++;
+      // Accumulate UID results for the done summary
+      if (!_burnUids) _burnUids = [];
+      _burnUids.push({ uid: msg.uid, ok: msg.ok, reader: msg.reader.name, error: msg.error, pages: msg.pagesWritten });
+      console.log(`[Burn] ${msg.ok ? 'OK' : 'FAILED'} ${msg.reader.name} — UID: ${msg.uid || '?'}${msg.error ? ' — ' + msg.error : ''}`);
+      break;
+    }
 
-    ws.onclose = () => {
-      _ws = null;
-      updateBurnBtn();
-      clearTimeout(retryTimer);
-      retryTimer = setTimeout(connect, 3000);
-    };
+    case 'read:result': {
+      const panelId = _ensureRRPanel(msg.reader.id, msg.reader.name);
+      const body    = document.querySelector(`#${panelId} .rr-panel-body`);
+      const uidEl   = document.getElementById(`${panelId}-uid`);
+      if (uidEl && msg.uid) uidEl.textContent = `UID: ${msg.uid}`;
+      body.innerHTML = '';
+      if (!msg.ok) {
+        body.innerHTML = `<div style="color:var(--err);font-size:12px">${icon('x')} ${esc(msg.error || 'Read error')}</div>`;
+        break;
+      }
+      const bytesLabel = document.createElement('div');
+      bytesLabel.className = 'rr-status';
+      bytesLabel.textContent = `${msg.bytes} bytes — pages 4–${4 + msg.bytes/4 - 1}`;
+      body.appendChild(bytesLabel);
+      body.appendChild(_buildHexTable(msg.payload));
+      break;
+    }
 
-    ws.onerror = () => {};
+    case 'read:done': {
+      const rBtn = document.getElementById('rawread-btn');
+      if (rBtn) { rBtn.innerHTML = icon('rawread') + ' Raw Read'; updateBurnBtn(); }
+      break;
+    }
+
+    case 'burn:done': {
+      // Twin tag: one burn:write per reader → wait for the last burn:done
+      if (_burnDonePending > 1) { _burnDonePending--; break; }
+      _burnDonePending = 0;
+      const btn = document.getElementById('burn-btn');
+      if (btn) {
+        btn.innerHTML = (_burnOkCount === _burnTotal ? icon('check') : icon('x'))
+          + ` ${_burnOkCount}/${_burnTotal} written`;
+        // Show UID(s) written in the SDK Input panel header area
+        if (_burnUids?.length) {
+          const uidLines = _burnUids.map(r =>
+            `${r.ok ? icon('check') : icon('x')} ${esc(r.uid || '?')}`
+          ).join('   ');
+          const info = document.getElementById('sdk-left-burn-uids');
+          if (info) { info.innerHTML = uidLines; info.style.display = 'block'; }
+        }
+        // Reveal the Returns block — real SDK output from TigerTag.create()
+        const returnsWrap = document.getElementById('sdk-left-returns-wrap');
+        const returnsEl   = document.getElementById('sdk-left-returns');
+        if (returnsWrap && returnsEl) {
+          const burnResult = {
+            ok:    _burnOkCount === _burnTotal,
+            chips: _burnUids.map(r => Object.assign(
+              { uid: r.uid || null, ok: r.ok },
+              r.ok ? { pages_written: r.pages ?? 36 } : { error: r.error || 'write failed' }
+            )),
+          };
+          returnsEl.textContent = JSON.stringify(burnResult, null, 2);
+          returnsWrap.style.display = 'block';
+        }
+        setTimeout(() => {
+          btn.innerHTML = icon('burn') + ' Burn';
+          updateBurnBtn();
+          _burnUids = [];
+          const info = document.getElementById('sdk-left-burn-uids');
+          if (info) info.style.display = 'none';
+        }, 4000);
+      }
+      break;
+    }
   }
+}
 
-  connect();
+function initNfcEvents() {
+  if (!window.EventSource || location.protocol === 'file:') { nfcBarRender(); return; }
+  const es = new EventSource('/api/nfc/events');
+  es.onopen = () => { _nfcOnline = true; nfcBarRender(); updateBurnBtn(); };
+  es.onmessage = (ev) => {
+    let msg; try { msg = JSON.parse(ev.data); } catch { return; }
+    handleNfcMessage(msg);
+  };
+  es.onerror = () => {   // EventSource reconnects on its own
+    _nfcOnline = false; _readerState.clear(); nfcBarRender();
+  };
 }
 
 // ── Boot ───────────────────────────────────────────────────────────────────────
 
+hydrateIcons();
+setLoadSource(_loadSource);
 buildPresets();
-loadDB();
+refreshCatalogInfo();
+refreshDbInfo();
 selectVersion(ID_TIGERTAG);
-initWebSocket();
+setMode('read');
+// Reader events only after the reference DB has loaded, so chips replayed at connect
+// decode with labels and public keys
+loadDB().finally(initNfcEvents);
 
-// Fetch real SDK version from server and update the badge
-fetch('/api/version').then(r => r.json()).then(({ version }) => {
-  const badge = document.getElementById('sdk-version-badge');
-  if (badge) badge.textContent = 'SDK v' + version;
-}).catch(() => { /* server may not expose the route — keep placeholder */ });
+// SDK serving this page: header, badge, names and code follow it
+fetch('/api/version').then(r => r.json()).then((info) => {
+  applySdkIdentity(info);
+  if ((_mode === 'read' && _readView) || (_mode === 'burn' && _burnView)) setMode(_mode);   // re-render names
+}).catch(() => applySdkIdentity(null));
 </script>
 </body>
 </html>

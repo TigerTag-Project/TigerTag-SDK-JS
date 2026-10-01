@@ -330,11 +330,11 @@ function main() {
       material  = d.material ? TigerTagDB.label(d.material) : '—';
       brand     = d.brand    ? TigerTagDB.label(d.brand)    : '—';
       status    = String(sig);
-      ok        = '✓';
+      ok        = 'OK';
     } catch (err) {
       material = brand = '—';
       status = `ERROR: ${err.message}`;
-      ok = '✗';
+      ok = 'FAILED';
     }
 
     const size = payload.length;
@@ -343,7 +343,7 @@ function main() {
     const brandPad = brand.substring(0, 14).padEnd(14);
     console.log(`  ${ok}  ${namePad}  ${String(size).padStart(3)}B  ${matPad} ${brandPad}  ${status}`);
 
-    if (ok === '✗') process.exit(1);
+    if (ok === 'FAILED') process.exit(1);
   }
 
   console.log('\nDone. Load any fixture with:');

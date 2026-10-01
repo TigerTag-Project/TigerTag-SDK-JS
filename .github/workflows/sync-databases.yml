@@ -26,7 +26,9 @@ jobs:
       - name: Install dependencies (skip optional native modules)
         run: npm ci --omit=optional
 
-      - name: Sync databases from TigerTag API
+      - name: Sync reference tables and product catalogue
+        # Tables from the TigerTag API (GitHub mirror as fallback), catalogue as
+        # database/id_catalog.json.gz — rewritten only when its content changed.
         run: node scripts/sync_databases.js
 
       - name: Commit and push if databases changed

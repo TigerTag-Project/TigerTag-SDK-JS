@@ -1,5 +1,5 @@
 # TigerTag JavaScript SDK — Reference for AI Agents
-# Version: 1.0.4 | Protocol: TigerTag Open Source v2.1
+# Version: 1.2.0 | Protocol: TigerTag Open Source v2.2
 # npm:  https://www.npmjs.com/package/tigertag
 # SDK:  https://github.com/TigerTag-Project/TigerTag-SDK-JS
 # Spec: https://github.com/TigerTag-Project/TigerTag-RFID-Guide
@@ -88,7 +88,7 @@ Language:       JavaScript (Node.js 18+, CommonJS)
 Package:        tigertag (npm) — published and available
 Install:        npm install tigertag
 npm URL:        https://www.npmjs.com/package/tigertag
-Version:        1.0.4
+Version:        1.2.0
 Main entry:     src/index.js
 CLI:            bin/tigertag.js (command: tigertag)
 License:        Apache-2.0
@@ -96,7 +96,7 @@ No external runtime dependencies — Node.js built-in crypto and fetch only.
 
 Optional devDependencies for playground NFC reader support:
   npm install ws nfc-pcsc
-  Enables: ACR122U / PC-SC readers connected live to the playground via WebSocket
+  Enables: ACR122U / PC-SC readers connected live to the playground (Server-Sent Events + HTTP)
 
 
 ## PROTOCOL CONSTANTS
@@ -141,7 +141,7 @@ Offset  Size  JS property       Type    Description
 0x24    1     color2R           u8
 0x25    1     color2G           u8
 0x26    1     color2B           u8
-0x27    1     (padding)         0x00
+0x27    1     tagInfo           u8      high nibble = tag index, low nibble = tag count (0x12 = tag 1 of 2, 0x00 = unknown)
 0x28    1     color3R           u8
 0x29    1     color3G           u8
 0x2A    1     color3B           u8
@@ -176,6 +176,8 @@ TigerTag.create({ ...fields })
   Returns a new TigerTag with ID_TIGERTAG and MAKER_PRODUCT_ID.
   Optional `measureAvailable` parameter now accepted — pass to encode partial spools correctly
   (defaults to `measure` when omitted, i.e. full spool).
+  Optional `tagCount` / `tagIndex` (0–15, default 0 = unknown) are encoded into tagInfo
+  (byte +39): tagInfo = tagIndex << 4 | tagCount, so the hex reads "index/count". Out-of-range values throw RangeError.
 
 TigerTag.asInit(uid?)
   Returns a blank TigerTag Init chip ready for programming.
@@ -198,6 +200,22 @@ TigerTag.fromCloudDoc(doc, db?)
   transparently to the chip integer format: tdRaw = Math.round(doc.TD * 10).
   Reading from chip is also transparent: tag.tdValue = tag.tdRaw / 10.
 
+await TigerTag.fromCatalog(productId, { catalog?, uid?, tagCount?, tagIndex?, timestamp?, db?,
+                                       url?, cacheDir?, maxAge?, force? })  → Promise<TigerTag>
+  TigerTag+ (idTigertag = ID_TIGERTAG_PLUS, idProduct = productId) from the official catalogue
+  id_catalog.json (raw.githubusercontent.com/TigerTag-Project/TigerTag-RFID-Guide/refs/heads/main/database/id_catalog.json,
+  14 000+ products, ~12 MB, NOT bundled: downloaded on first use, cached in the user cache dir
+  ~/Library/Caches/tigertag | %LOCALAPPDATA%\tigertag | $XDG_CACHE_HOME/tigertag | ~/.cache/tigertag,
+  override TIGERTAG_CACHE_DIR). Errors: unknown ID, product without RFID_Data, offline with no cache.
+TigerTag.fromCatalogEntry(entry, { uid?, tagCount?, tagIndex?, timestamp?, db? }) → TigerTag (sync)
+  RFID_Data mapping: data1=idDiameter, data2/data3=nozzleTempMin/Max, data4/data5=dryTemp/dryTime,
+  data6/data7=bedTempMin/Max; id_aspect2 null → 0 (none); null → 0; colour 2/3 from
+  color_r2…b3 when present, else color_info.colors[1]/[2] ("#RRGGBBAA").
+await loadCatalog({ url?, cacheDir?, maxAge? (1 day = 24 h), force?, timeout?, fetch? }) → Map<id, entry>
+await refreshCatalog(options?) → Map  (force check; ETag/Last-Modified → 304 keeps the cache)
+catalogInfo({ cacheDir? }) → { downloaded, count, fetchedAt, checkedAt, url, etag, lastModified, cacheFile }
+await catalogEntry(productId, options?) → entry | null  (title, brand, sku, barcode, img_src, material, measure…)
+
 
 ## INSTANCE METHODS
 
@@ -219,9 +237,15 @@ tag.toRawDict()                         → raw protocol fields (flat snake_case
                                           (num_colors derived from aspect DB: Basic→1, Bicolor→2, Tricolor→3).
                                           num_colors: int — number of active color slots.
                                           color_list: string[] — #RRGGBB hex for active slots only.
+                                          tag_info: int — raw u8 at +39 (tag index << 4 | tag count).
 tag.patch({ ...fields })                → new TigerTag (immutable update, camelCase keys)
+                                          tagCount / tagIndex (or tagInfo) are patchable; the nibble not
+                                          supplied is kept. tagInfo is not signed — patching it never
+                                          invalidates the ECDSA signature.
 tag.patchFromRawDict(raw)               → new TigerTag (immutable update, snake_case keys from toRawDict())
 tag.validate()                          → string[] warnings
+                                          Tag checks: tag index/count outside 0–15, index > count (count > 0),
+                                          count == 1 with index > 1. Count 0 with index > 0 is accepted.
 tag.verify(db?)                         → SignatureResult
 tag.pretty(db?, sigResult?)             → human-readable string
                                           Quantity section: "1 kg (= 1000 g)" / "0.75 kg (= 750 g)  (75% remaining)"
@@ -246,6 +270,15 @@ tag.isSigned          boolean — signatureR or signatureS non-zero
 tag.uidHex            string | null — "04A1B2C3D4E5F6"
 tag.color1Hex         string — "#RRGGBB"
 tag.tdValue           number — tdRaw / 10
+tag.tagInfo           number — raw u8 at +39 (protocol v2.2). 0x00 = unknown (all tags written before v2.2)
+tag.tagIndex          number — tagInfo >> 4 (high nibble): which tag this one is, from 1. 0 unknown
+tag.tagCount          number — tagInfo & 0x0F (low nibble): TigerTags on the item (what it is comes from idType). 0 unknown, 1 single tag, 2 twin tag, … 15
+                      The hex reads "index/count": 0x11 single tag (1/1), 0x12 / 0x22 twin tag, tag 1 / 2 of 2,
+                      0x02 twin tag with index unknown.
+                      All tags of an item share the same tagCount and the same timestamp (twin tag pairing id).
+                      describe() adds "Tag 1 of 2 on this filament." (idType label lowercased; "item" when unknown).
+                      toDict() exposes tag_count / tag_index (null when 0) next to twin_tag_pairing_id.
+                      pretty() prints "Tag          1 of 2" ("?" for unknown parts, " (unknown)" when tagInfo is 0).
 tag.manufacturingDate Date — from timestamp field (seconds since 2000-01-01 UTC)
 tag.stockPercent      number | null — measureAvailable/measure × 100
 tag.productPageUrl    string | null — TigerTag+ product page URL
@@ -259,9 +292,23 @@ idTigertag, idProduct, uid, signatureR, signatureS
 
 ## TigerTagDB
 
-new TigerTagDB({ dbPath?, autoSync?, verbose? })
-  dbPath:    path to database folder (default: bundled)
-  autoSync:  (ignored in JS — constructor is sync; call db.sync() explicitly)
+new TigerTagDB({ dbPath?, dataDir?, offline?, autoUpdate? (true), autoSync? (deprecated alias),
+                 maxAge? (1 day), verbose? (false), fetch? })
+  Synchronous, never waits for the network. Per table: dbPath (custom folder) is used EXCLUSIVELY
+  (missing file → Error, no fallback, no automatic network call); otherwise the newest of the
+  downloaded copy in the data dir and the bundled copy (by last_update.json timestamps).
+  Data dir: dataDir | TIGERTAG_DATA_DIR | TIGERTAG_CACHE_DIR | per-user cache folder/tigertag.
+  autoUpdate: ONE background check per process, at most once per maxAge (state in db_state.json,
+  retried after 1 h on failure): one request to api.tigertag.io/api:tigertag/all/last_update
+  (GitHub mirror fallback), only changed tables downloaded into the data dir, ~5 s timeout, never
+  throws; the instance reloads when done (await db.ready).
+  offline: true or TIGERTAG_OFFLINE=1 → zero network calls.
+await TigerTagDB.open(options?) → TigerTagDB   (same check, awaited before returning)
+await db.update({ force?, catalog? }) → string[] changed files (throws when offline / unreachable)
+db.info() → { offline, autoUpdate, maxAge, dataDir, customDir, lastCheck, lastAttempt, lastError,
+              tables: { <key>: { file, source: 'custom'|'downloaded'|'bundled', path, timestamp } },
+              catalog: catalogInfo() }
+db.ready → Promise<TigerTagDB> (background check finished)
 
 db.version(id)      → object | null
 db.material(id)     → object | null
@@ -270,7 +317,7 @@ db.type(id)         → object | null
 db.diameter(id)     → object | null
 db.brand(id)        → object | null
 db.unit(id)         → object | null
-db.sync(force?)     → Promise<string[]>
+db.sync(force?)     → Promise<string[]>   (alias of update)
 TigerTagDB.label(entry)   → string   (entry.label || entry.name || 'Unknown')
 
 
@@ -287,7 +334,7 @@ result.ok        boolean
 result.status    string — one of the constants above
 result.detail    string — human-readable detail
 result.toDict()  → { ok, status, detail }
-String(result)   → "✅ VALID" | "❌ INVALID" | "⬜ NOT SIGNED" | ...
+String(result)   → "VALID" | "INVALID" | "NOT SIGNED" | "NO PUBLIC KEY — …" | "NO UID — …" | "NO CRYPTO — …"
 
 
 ## ApiDiff
@@ -322,6 +369,7 @@ const {
   SignatureResult,
   ApiDiff,
   syncDatabases,
+  loadCatalog, refreshCatalog, catalogInfo, catalogEntry, catalogCacheDir, CATALOG_URL,
   ID_TIGERTAG,
   ID_TIGERTAG_PLUS,
   ID_TIGERTAG_INIT,
@@ -343,15 +391,24 @@ Five panels:
   SDK Input  (collapsible, right of center) — shows TigerTag.create({...}) call for the current tag (write flow).
              Opens automatically when Burn is clicked. Rail on left, expands rightward.
   SDK Output (collapsible, rightmost) — shows pretty(), describe(), verify(), toRawDict(), toDict(), rawApi(), diffApi() (read flow).
+  Tag index / Tag count inputs (0–15, 0 = unknown) write byte +39; the decoded view shows a "Tag" row
+  and a "Validation" card lists validate() warnings (returned by /api/parse as `validate`).
+  SDK Input tabs: create() | HEX (the 144 bytes Burn writes, pages 0x04–0x27) | Pages (page-by-page, write order).
+  Twin tag mode: 2+ readers holding a chip → one payload per reader (same Timestamp, tagCount n, tagIndex 1…n);
+  burn:write accepts an optional `reader` filter so each reader receives its own payload.
+  TigerTag+ tab: "Load from catalogue" (Product ID → GET /api/catalog/<id> → { entry, rfid_data, payload,
+  fields, pretty }) fills the whole form, shows title / brand / SKU / image, switches to Burn and builds
+  the preview (twin tag with 2 readers). "Update catalogue" → POST /api/catalog/refresh; status line from
+  GET /api/catalog/info ("Catalogue: 14 164 products · updated <date>" or "not downloaded yet").
              Opens automatically on Generate / NFC scan / Import. Rail on left, expands rightward.
   Both SDK rails are adjacent; click either to expand or collapse.
-  Raw Hex (modal, opened via 🔬 Raw Read button) — reads 144 bytes (pages 4–39) from all
+  Raw Hex (modal, opened via the Raw Read button) — reads 144 bytes (pages 4–39) from all
              card-holding readers. Displays a structured hex table: page (decimal), offset (byte),
              page (hex: 0x04–0x27), B0–B3, u32 BE, annotated field label "(value) field_name · …"
              decoded live from raw bytes. customMessage pages show decoded ASCII chars. Signature
              pages (24–39) dimmed, static labels only. Multiple readers shown side-by-side, each
              in its own collapsible panel. Copy hex button per panel: outputs one line per page as
-             "0x04 B0 B1 B2 B3\n…" with ✓ Copied! animation feedback (1.5 s green state).
+             "0x04 B0 B1 B2 B3\n…" with "Copied" feedback (1.5 s green state).
 
 Panel state is context-aware:
   Generate / NFC scan / Import → opens SDK Output, closes SDK Input
@@ -359,36 +416,38 @@ Panel state is context-aware:
   Raw Read → opens Raw Hex modal (multiple reader panels, side-by-side)
 
 ACR122U / PC-SC reader integration (requires: npm install ws nfc-pcsc):
-  - WebSocket server on same port as HTTP (ws://localhost:7432)
-  - Multiple simultaneous USB readers supported
-  - Card events: card:detected, card:removed, reader:connected, reader:disconnected
-  - On card placement: reads 144 bytes (pages 4–39), broadcasts to all playground clients
-  - Playground auto-populates form and displays full SDK output — no manual action needed
-  - Reader status shown in header: green dot = connected, orange pulse = card reading
-
-Burn (write) via WS:
-  - Client sends: { type: "burn:write", payload: "<hex>", reqId: "<id>" }
-  - Server writes pages 4–23 (80 bytes, 20 pages × 4 bytes) to every reader with a card
-  - Server replies: { type: "burn:result", reqId, reader, uid, ok, pagesWritten|error } per reader
-                   { type: "burn:done", reqId } when all readers processed
-  - Payload is always generated via POST /api/build before burn — SDK is the authoritative serializer
-
-Raw Read via WS:
-  - Client sends:  { type: "read:request", reqId: "<id>" }
-  - Server replies: { type: "read:result", reqId, reader, uid, payload: "<288-char hex>", bytes, ok } per reader
-                   { type: "read:done", reqId } when all readers processed
+  The page is shared with the Python SDK (identical tools/playground.html) and talks to either
+  server through the contract in docs/playground-api.md:
+  - GET /api/version → { version, sdk: "javascript", label: "JS SDK", repo, install, server, style: "camel" }
+  - GET /api/nfc/events (Server-Sent Events): readers:status, reader:connected / reader:disconnected,
+    card:detected (reads 144 bytes, pages 4–39, with pretty / describe / verify / raw_dict / dict /
+    validate / tag_*), card:removed, error; chips already on the readers are replayed on connect
+  - POST /api/nfc/read { reqId?, reader? } → { messages: [read:result…, read:done] }
+  - POST /api/nfc/burn { reqId?, reader?, payload } → { messages: [burn:result { pagesWritten: 36,
+    signature_dropped }…, burn:done] }. Pages 0x04–0x27; the tag data goes to 0x04–0x17 and the
+    signature pages 0x18–0x27 are ALWAYS written as 00 00 00 00 — playgrounds never write a signature
+    (only a certified manufacturer can issue one). Pages 0–3 and 0x28+ are never touched.
+    Page plan: tools/burn_plan.js.
+  - POST /api/nfc/plan { payload } → { signature_dropped, pages: 36, apdus: ["FF D6 00 04 04 …", …] }
+  - POST /api/build takes the create() fields in snake_case (product_id, id_aspect_1, color1_r,
+    tag_count, measure_available…) — the SDK is always the authoritative serializer
+  - Legacy WebSocket on the same port (read:request / burn:write) is kept for older pages
+  - TIGERTAG_PLAYGROUND_NO_NFC=1 starts the server without touching the readers
+  - scripts/check_playground_sync.js fails when the page differs from the Python SDK's copy
   - Server tries 144 bytes first, falls back to 80 bytes for smaller chips
   - Each reader panel is created dynamically on first read:result for that reader
 
 Form behaviour:
-  - `timestamp: null` is always passed to TigerTag.create() — SDK sets its own write-time timestamp
+  - Generate computes one timestamp (shown read-only as "Manufacturing date") and passes it to create();
+    every tag of a twin tag gets the same value. Available above Initial qty is refused.
   - Available qty auto-links to Initial Qty: changes to Initial Qty propagate to Available automatically,
     until the user manually edits Available. Link is restored on preset load, API fetch, or NFC scan.
 
 Server endpoints:
-  GET  /api/version  → { version: string }  (from package.json, used by playground badge)
-  POST /api/parse    → { pretty, describe, verify, raw_dict, dict }  full SDK parse of { uid, payload } hex
-  POST /api/build    → { payload: hex }   TigerTag.create(kwargs).toBytes() — SDK-authoritative; playground always calls this before burn
+  Full contract (same on the Python server): docs/playground-api.md
+  GET  /api/version  → { version, sdk, label, repo, install, server, style }  (header, names, create() code style)
+  POST /api/parse    → { pretty, describe, verify, raw_dict, dict, validate, tag_info, tag_count, tag_index }  of { uid?, payload } hex
+  POST /api/build    → { payload: hex, validate, tag_* }  TigerTag.create(snake_case fields) — SDK-authoritative; playground always calls this before burn
   POST /api/diff     → { api_data, diffs, in_sync, error }  (server-side diffApi)
 
 
@@ -397,8 +456,10 @@ Server endpoints:
 tigertag dump.bin              # parse + human-readable output
 tigertag dump.bin --json       # output as JSON
 tigertag dump.bin --raw        # raw protocol fields, no DB lookup
-tigertag dump.bin --db /path   # use custom database folder
-tigertag --sync-only           # update reference databases and exit
+tigertag dump.bin --db /path   # use custom database folder (exclusively)
+tigertag dump.bin --offline    # no network call at all
+tigertag update [--force] [--catalog] [--data-dir PATH | --db PATH]   # update reference data now
+tigertag --sync-only           # same as "tigertag update"
 tigertag --version             # show version
 
 
@@ -412,9 +473,14 @@ database/id_diameter.json     — diameter IDs (1.75mm, 2.85mm…)
 database/id_brand.json        — brand IDs (eSun, Rosa3D, Bambu Lab, Polymaker…)
 database/id_measure_unit.json — unit IDs (grams, kg, ml, L…)
 database/last_update.json     — sync timestamps
+database/id_catalog.json.gz   — product catalogue (gzip, ~1 MB; gunzipped at load) + id_catalog.meta.json
 
-All files are arrays of objects with an "id" field. Lookup is by linear scan.
-Bundled versions work 100% offline. Call syncDatabases() or db.sync() to update.
+All table files are arrays of objects with an "id" field. Lookup is by linear scan.
+Bundled versions work 100% offline and are refreshed at every release (publish.yml runs
+scripts/sync_databases.js before npm publish; sync-databases.yml refreshes them daily).
+Fresher copies are downloaded into the data dir automatically (daily) or with
+db.update() / `tigertag update [--force] [--catalog] [--data-dir PATH | --db PATH]`.
+Playground server: GET /api/db/info, POST /api/db/update ({ force, catalog }).
 
 
 ## NOTES FOR AI CODE GENERATION
@@ -442,6 +508,9 @@ Bundled versions work 100% offline. Call syncDatabases() or db.sync() to update.
      uid_hex            → uidHex
      color1_hex         → color1Hex
      td_value           → tdValue
+     tag_info          → tagInfo
+     tag_count         → tagCount
+     tag_index         → tagIndex
      manufacturing_date → manufacturingDate
      stock_percent      → stockPercent
 9. `TigerTag.create()` accepts `measureAvailable` as an optional parameter to encode partial spool
