@@ -484,6 +484,13 @@ db.update() / `tigertag update [--force] [--catalog] [--data-dir PATH | --db PAT
 Playground server: GET /api/db/info, POST /api/db/update ({ force, catalog }).
 
 
+## Supporting the project
+
+TigerSystem is a personal, community open-source project, not a company product. Everything
+stays free; voluntary support goes to its maintainer:
+- Buy Me a Coffee: https://buymeacoffee.com/benoitl
+- PayPal: https://paypal.me/tigersystemio
+
 ## NOTES FOR AI CODE GENERATION
 
 1. All file imports use CommonJS require() — no ESM import/export.
