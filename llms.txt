@@ -489,6 +489,7 @@ Playground server: GET /api/db/info, POST /api/db/update ({ force, catalog }).
 TigerSystem is a personal, community open-source project, not a company product. Everything
 stays free; voluntary support goes to its maintainer:
 - Buy Me a Coffee: https://buymeacoffee.com/benoitl
+- Ko-fi: https://ko-fi.com/tigersystemio
 - PayPal: https://paypal.me/tigersystemio
 
 ## NOTES FOR AI CODE GENERATION
