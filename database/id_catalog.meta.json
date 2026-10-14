@@ -1,9 +1,9 @@
 {
   "url": "https://raw.githubusercontent.com/TigerTag-Project/TigerTag-RFID-Guide/refs/heads/main/database/id_catalog.json",
-  "count": 14524,
-  "fetchedAt": "2026-10-13T10:04:40.263Z",
-  "etag": "W/\"209ecdf8194f918945fc11aaea5a2ca1b2904476ddb4b6acfd62d3bf909db9c6\"",
+  "count": 14642,
+  "fetchedAt": "2026-10-14T08:22:20.261Z",
+  "etag": "W/\"05d0eca8dcb646ece8324815d3160cb7a6a078424363f31e43b990cb8a95e547\"",
   "lastModified": null,
-  "bytes": 12130335,
-  "sha256": "b7847a3d4759064c7e96b2001faebf457a6e7096e497085a7ad2d7144fcc54ad"
+  "bytes": 12225552,
+  "sha256": "52c98cf88cb7773ca8a9337fc4ee102b90eccf59495b8bf261c1d08cf82133f2"
 }
