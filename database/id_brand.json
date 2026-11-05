@@ -449,6 +449,13 @@
     ]
   },
   {
+    "id": 20922,
+    "name": "Unveil Form",
+    "type_ids": [
+      142
+    ]
+  },
+  {
     "id": 22652,
     "name": "Spectrum",
     "type_ids": [
@@ -552,6 +559,13 @@
   {
     "id": 29302,
     "name": "IIIDMAX",
+    "type_ids": [
+      142
+    ]
+  },
+  {
+    "id": 31367,
+    "name": "3D Printing Canada",
     "type_ids": [
       142
     ]
