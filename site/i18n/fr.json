@@ -8,7 +8,7 @@
   "meta_title": "SDK JavaScript TigerTag : lire et écrire les tags NFC",
   "meta_description": "SDK Node.js pour lire, vérifier, créer et modifier les puces NFC TigerTag des bobines de filament et de résine. Hors ligne, Apache-2.0 : npm install tigertag.",
   "og_title": "SDK JavaScript TigerTag",
-  "og_description": "Lisez, vérifiez et écrivez les puces NFC TigerTag depuis Node.js : matière, couleur, réglages, quantité et signature vérifiée hors ligne.",
+  "og_description": "Lisez, vérifiez et écrivez les puces NFC TigerTag depuis Node.js : matière, couleur, réglages, quantité et signature.",
   "og_alt": "Une étiquette TigerTag Refill, la puce NFC qui se pose sur une recharge de filament",
   "nav_start": "Démarrer",
   "nav_features": "Fonctions",
