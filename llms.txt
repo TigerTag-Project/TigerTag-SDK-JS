@@ -1,5 +1,5 @@
 # TigerTag JavaScript SDK — Reference for AI Agents
-# Version: 1.2.0 | Protocol: TigerTag Open Source v2.2
+# Version: 1.2.1 | Protocol: TigerTag Open Source v2.2
 # npm:  https://www.npmjs.com/package/tigertag
 # Site: https://tigertag-project.github.io/TigerTag-SDK-JS/ (11 languages)
 # SDK:  https://github.com/TigerTag-Project/TigerTag-SDK-JS
@@ -90,7 +90,7 @@ Package:        tigertag (npm) — published and available
 Install:        npm install tigertag
                 pnpm add tigertag   (same npm-registry package; yarn add / bun add also work)
 npm URL:        https://www.npmjs.com/package/tigertag
-Version:        1.2.0
+Version:        1.2.1
 Main entry:     src/index.js
 CLI:            bin/tigertag.js (command: tigertag)
 License:        Apache-2.0

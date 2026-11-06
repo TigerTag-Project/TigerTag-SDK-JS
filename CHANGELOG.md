@@ -5,6 +5,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.2.1] — 2026-11-06
+
+### Changed
+- The catalogue example in the README, the docstrings and the playground is now product
+  `2673739332`, Rosa3D PLA Rainbow - Fire 1000 g: `3527039449` (Elegoo Rapid TPU 95A - Black)
+  left the catalogue. The tests that read the bundled copy use it too.
+- The copyright and trademark holder is named TigerSystem (formerly TigerTag Corp) in the
+  licence, the source headers and the README.
+- Bundled reference data (`database/`) refreshed from the TigerTag API.
+
 ### Added
 - **Showcase site** (`site/`), published on GitHub Pages at
   https://tigertag-project.github.io/TigerTag-SDK-JS/ by `.github/workflows/pages.yml`:
