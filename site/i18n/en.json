@@ -8,7 +8,7 @@
   "meta_title": "TigerTag JavaScript SDK: read and write NFC filament tags",
   "meta_description": "Node.js SDK to read, verify, create and patch TigerTag NFC chips on 3D-printing filament and resin. Offline, Apache-2.0: npm install tigertag.",
   "og_title": "TigerTag JavaScript SDK",
-  "og_description": "Read, verify and write TigerTag NFC chips from Node.js: material, colour, print settings, quantity and offline signature check.",
+  "og_description": "Read, verify and write TigerTag NFC chips from Node.js: material, colour, settings, quantity and offline signature check.",
   "og_alt": "A TigerTag Refill tag, the NFC chip that goes on a refill spool",
   "nav_start": "Get started",
   "nav_features": "Features",

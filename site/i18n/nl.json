@@ -8,7 +8,7 @@
   "meta_title": "TigerTag JavaScript-SDK: NFC-filamenttags lezen en schrijven",
   "meta_description": "Node.js-SDK om TigerTag-NFC-chips op spoelen filament en hars voor 3D-printen te lezen, te controleren, aan te maken en aan te passen. Offline, Apache-2.0.",
   "og_title": "TigerTag JavaScript-SDK",
-  "og_description": "Lees, controleer en schrijf TigerTag-NFC-chips vanuit Node.js: materiaal, kleur, printinstellingen, hoeveelheid en offline handtekeningcontrole.",
+  "og_description": "Lees, verifieer en schrijf TigerTag-NFC-chips vanuit Node.js: materiaal, kleur, instellingen, hoeveelheid, handtekening.",
   "og_alt": "Een TigerTag Refill-label, de NFC-chip voor een navulspoel",
   "nav_start": "Aan de slag",
   "nav_features": "Functies",

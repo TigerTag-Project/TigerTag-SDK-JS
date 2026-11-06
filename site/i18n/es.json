@@ -8,7 +8,7 @@
   "meta_title": "SDK JavaScript de TigerTag: leer y escribir etiquetas NFC",
   "meta_description": "SDK de Node.js para leer, verificar, crear y modificar chips NFC TigerTag en bobinas de filamento y resina de impresión 3D. Sin conexión, Apache-2.0.",
   "og_title": "SDK JavaScript de TigerTag",
-  "og_description": "Lee, verifica y escribe chips NFC TigerTag desde Node.js: material, color, ajustes de impresión, cantidad y firma comprobada sin conexión.",
+  "og_description": "Lee, verifica y escribe chips NFC TigerTag desde Node.js: material, color, ajustes, cantidad y firma verificada.",
   "og_alt": "Una etiqueta TigerTag Refill, el chip NFC que va en una recarga de filamento",
   "nav_start": "Empezar",
   "nav_features": "Funciones",
