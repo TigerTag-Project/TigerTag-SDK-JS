@@ -101,7 +101,7 @@
   "join_text": "npm install tigertag，然后调用 TigerTag.fromPages(uid, payload)。",
   "join_btn": "在 npm 上查看",
   "foot_licences": "SDK Apache-2.0 · 协议规范 CC-BY-4.0",
-  "foot_trademark": "TigerTag 是 TigerTag Corp 的商标。商标政策",
+  "foot_trademark": "TigerTag 是 TigerSystem 的商标。商标政策",
   "foot_protocol": "TigerTag 协议",
   "foot_source": "本页源代码"
 }

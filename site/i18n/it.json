@@ -101,7 +101,7 @@
   "join_text": "npm install tigertag, poi TigerTag.fromPages(uid, payload).",
   "join_btn": "Vedi su npm",
   "foot_licences": "SDK Apache-2.0 · Specifica del protocollo CC-BY-4.0",
-  "foot_trademark": "TigerTag è un marchio di TigerTag Corp. Politica sul marchio",
+  "foot_trademark": "TigerTag è un marchio di TigerSystem. Politica sul marchio",
   "foot_protocol": "Protocollo TigerTag",
   "foot_source": "Sorgente di questa pagina"
 }
