@@ -50,6 +50,10 @@ REPO_URL = "https://github.com/TigerTag-Project/TigerTag-SDK-JS"
 # The eleven languages of the TigerTag sites, in the same order. `pt` (Brazil)
 # and `pt-pt` (Portugal) are separate dictionaries on purpose.
 LANGS = ["en", "fr", "de", "es", "it", "zh", "pt", "pt-pt", "pl", "ru", "nl"]
+
+# The share picture: tigersystem.io draws this page's card in each language,
+# with the same renderer as its own pages, so the site keeps no picture of its own.
+SHARE_CARD = "https://tigersystem.io/{lang}/sdk-js/opengraph-image"
 HTML_LANG = {"zh": "zh-Hans", "pt": "pt-BR", "pt-pt": "pt-PT"}
 OG_LOCALE = {"en": "en_US", "fr": "fr_FR", "de": "de_DE", "es": "es_ES", "it": "it_IT",
              "zh": "zh_CN", "pt": "pt_BR", "pt-pt": "pt_PT", "pl": "pl_PL", "ru": "ru_RU", "nl": "nl_NL"}
@@ -249,7 +253,7 @@ def render(template, lang, words, dicts, site_url, ctx):
          "runtimePlatform": "Node.js " + pkg.get("engines", {}).get("node", ""),
          "version": pkg["version"], "dateModified": ctx["date"],
          "license": "https://www.apache.org/licenses/LICENSE-2.0",
-         "image": site_url + "assets/og.png",
+         "image": SHARE_CARD.format(lang=lang),
          "isBasedOn": "https://github.com/TigerTag-Project/TigerTag-RFID-Guide",
          "author": {"@id": ORG_ID}, "publisher": {"@id": ORG_ID}},
         {"@context": "https://schema.org", "@type": "FAQPage", "inLanguage": hl, "mainEntity": faq},
@@ -260,6 +264,7 @@ def render(template, lang, words, dicts, site_url, ctx):
 
     special = {
         "@lang": lang,
+        "@ogimage": SHARE_CARD.format(lang=lang),
         "@htmllang": hl,
         "@oglocale": OG_LOCALE[lang],
         "@oglocalealt": "\n".join(f'<meta property="og:locale:alternate" content="{OG_LOCALE[l]}">' for l in LANGS if l != lang),

@@ -9,7 +9,7 @@
   "meta_description": "SDK для Node.js: чтение, проверка, создание и изменение NFC-чипов TigerTag на катушках филамента и смолы для 3D-печати. Офлайн, Apache-2.0.",
   "og_title": "TigerTag JavaScript SDK для Node.js",
   "og_description": "Читайте, проверяйте и записывайте NFC-чипы TigerTag в Node.js: материал, цвет, параметры печати, количество и офлайн-проверка подписи.",
-  "og_alt": "TigerTag JavaScript SDK: npm install tigertag",
+  "og_alt": "Метка TigerTag Refill — NFC-чип для катушки-рефилла",
   "nav_start": "Начало работы",
   "nav_features": "Возможности",
   "nav_tools": "CLI и Electron",

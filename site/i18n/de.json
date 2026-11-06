@@ -9,7 +9,7 @@
   "meta_description": "Node.js-SDK zum Lesen, Prüfen, Erstellen und Ändern von TigerTag-NFC-Chips auf Filament- und Harzspulen für den 3D-Druck. Offline, Apache-2.0.",
   "og_title": "TigerTag JavaScript-SDK",
   "og_description": "TigerTag-NFC-Chips mit Node.js lesen, prüfen und schreiben: Material, Farbe, Druckwerte, Menge und Signaturprüfung offline.",
-  "og_alt": "TigerTag JavaScript-SDK: npm install tigertag",
+  "og_alt": "Ein TigerTag-Refill-Tag, der NFC-Chip für eine Nachfüllspule",
   "nav_start": "Loslegen",
   "nav_features": "Funktionen",
   "nav_tools": "CLI und Electron",

@@ -9,7 +9,7 @@
   "meta_description": "用于读取、验证、创建和修改 3D 打印耗材与树脂上 TigerTag NFC 芯片的 Node.js SDK。离线可用，Apache-2.0 许可：npm install tigertag。",
   "og_title": "TigerTag JavaScript SDK（Node.js）",
   "og_description": "在 Node.js 中读取、验证和写入 TigerTag NFC 芯片：材料、颜色、打印参数、余量，以及离线签名验证。",
-  "og_alt": "TigerTag JavaScript SDK：npm install tigertag",
+  "og_alt": "TigerTag Refill 标签：装在补充装耗材上的 NFC 芯片",
   "nav_start": "快速开始",
   "nav_features": "功能",
   "nav_tools": "CLI 与 Electron",
