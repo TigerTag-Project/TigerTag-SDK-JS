@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="104" viewBox="0 0 560 104" role="img" aria-label="Get started with the JavaScript SDK">
+  <title>Get started with the JavaScript SDK</title>
+  <defs>
+    <linearGradient id="sdkFill" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff8a2b"/>
+      <stop offset="0.55" stop-color="#ff7a18"/>
+      <stop offset="1" stop-color="#e6352b"/>
+    </linearGradient>
+    <linearGradient id="sdkGloss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.26"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="2" y="2" width="556" height="100" rx="50" fill="url(#sdkFill)"/>
+  <rect x="2" y="2" width="556" height="50" rx="50" fill="url(#sdkGloss)"/>
+  <rect x="2.5" y="2.5" width="555" height="99" rx="49.5" fill="none" stroke="#ffffff" stroke-opacity="0.30"/>
+
+  <!-- A code window: the page shows the SDK's code. -->
+  <g transform="translate(44 32)" fill="none" stroke="#ffffff" stroke-width="3.2"
+     stroke-linecap="round" stroke-linejoin="round">
+    <rect x="1.6" y="1.6" width="36.8" height="36.8" rx="8"/>
+    <path d="M15 14l-6 6 6 6M25 14l6 6-6 6"/>
+  </g>
+
+  <text x="106" y="45" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+        font-size="24" font-weight="700" fill="#ffffff" letter-spacing="-0.3">Get started with the JavaScript SDK</text>
+  <text x="106" y="72" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+        font-size="14.5" font-weight="500" fill="#ffffff" fill-opacity="0.88">Install, read, verify and write TigerTag chips</text>
+
+  <path d="M514 40 l12 12 l-12 12" fill="none" stroke="#ffffff" stroke-width="3.4"
+        stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.9"/>
+</svg>

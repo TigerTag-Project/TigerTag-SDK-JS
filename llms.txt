@@ -1,6 +1,7 @@
 # TigerTag JavaScript SDK — Reference for AI Agents
 # Version: 1.2.0 | Protocol: TigerTag Open Source v2.2
 # npm:  https://www.npmjs.com/package/tigertag
+# Site: https://tigertag-project.github.io/TigerTag-SDK-JS/ (11 languages)
 # SDK:  https://github.com/TigerTag-Project/TigerTag-SDK-JS
 # Spec: https://github.com/TigerTag-Project/TigerTag-RFID-Guide
 
