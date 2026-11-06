@@ -102,9 +102,9 @@ describe('playground server contract', () => {
   });
 
   test('GET /api/catalog/<id> works offline from the bundled copy', async () => {
-    const out = await (await fetch(`${base}/api/catalog/3527039449`)).json();
-    expect(out.entry.title).toBe('Rapid TPU 95A - Black');
-    expect(out.fields).toMatchObject({ product_id: 3527039449, nozzle_temp_min: 200, id_aspect_2: 0 });
+    const out = await (await fetch(`${base}/api/catalog/2673739332`)).json();
+    expect(out.entry.title).toBe('PLA Rainbow - Fire');
+    expect(out.fields).toMatchObject({ product_id: 2673739332, nozzle_temp_min: 195, id_aspect_2: 145 });
     expect(out.catalog.source).toBe('bundled');
     expect((await fetch(`${base}/api/catalog/123`)).status).toBe(404);
   });

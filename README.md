@@ -454,16 +454,16 @@ once) and caches it in a per-user cache folder (`~/Library/Caches/tigertag`, `%L
 ```js
 const { TigerTag, catalogEntry, refreshCatalog, catalogInfo } = require('tigertag');
 
-const tag   = await TigerTag.fromCatalog(3527039449);   // Elegoo Rapid TPU 95A - Black
+const tag   = await TigerTag.fromCatalog(2673739332);   // Rosa3D PLA Rainbow - Fire
 const bytes = tag.toBytes();                            // 80 bytes, ready to write
 
 // Twin tag: same timestamp on both tags
 const ts   = Math.floor((Date.now() - Date.UTC(2000, 0, 1)) / 1000);
-const tag1 = await TigerTag.fromCatalog(3527039449, { tagCount: 2, tagIndex: 1, timestamp: ts });
-const tag2 = await TigerTag.fromCatalog(3527039449, { tagCount: 2, tagIndex: 2, timestamp: ts });
+const tag1 = await TigerTag.fromCatalog(2673739332, { tagCount: 2, tagIndex: 1, timestamp: ts });
+const tag2 = await TigerTag.fromCatalog(2673739332, { tagCount: 2, tagIndex: 2, timestamp: ts });
 
 // Display metadata (title, brand, sku, barcode, img_src, material, measure…)
-const entry = await catalogEntry(3527039449);
+const entry = await catalogEntry(2673739332);
 
 // The catalogue changes every day: check for a new version now (ETag — unchanged = 304, no download)
 await refreshCatalog();

@@ -8,7 +8,7 @@ const {
   loadCatalog, refreshCatalog, catalogInfo, catalogEntry, clearCatalogMemo,
 } = require('../src/catalog');
 
-// Real entry from id_catalog.json (Elegoo Rapid TPU 95A - Black)
+// Entry in the id_catalog.json format (Elegoo Rapid TPU 95A - Black)
 const ELEGOO = {
   RFID_Data: {
     color_a: 255, color_b: 0, color_g: 0, color_r: 0,

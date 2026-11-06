@@ -32,8 +32,8 @@
  *
  * @example
  * const { loadCatalog, catalogEntry, TigerTag } = require('tigertag');
- * const tag   = await TigerTag.fromCatalog(3527039449);   // ready to burn
- * const entry = await catalogEntry(3527039449);           // title, brand, sku, img_src…
+ * const tag   = await TigerTag.fromCatalog(2673739332);   // ready to burn
+ * const entry = await catalogEntry(2673739332);           // title, brand, sku, img_src…
  */
 
 const fs   = require('fs');

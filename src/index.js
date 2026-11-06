@@ -38,7 +38,7 @@
  *   console.log(tag.toDict());      // enriched with labels, hex colors, dates
  *   console.log(tag.verify());      // ECDSA signature result
  *
- *   const plus = await TigerTag.fromCatalog(3527039449);  // TigerTag+ from the catalogue
+ *   const plus = await TigerTag.fromCatalog(2673739332);  // TigerTag+ from the catalogue
  */
 
 const {

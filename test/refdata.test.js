@@ -139,7 +139,7 @@ describe('offline switch', () => {
     const envDb = await TigerTagDB.open({ dataDir, fetch });   // env set by test/setup-env.js
     await envDb.ready;
     await loadCatalog({ dataDir, fetch, force: true });
-    await TigerTag.fromCatalog(3527039449, { dataDir, fetch, force: true });
+    await TigerTag.fromCatalog(2673739332, { dataDir, fetch, force: true });
     expect(fetch.calls).toEqual([]);
   });
 });
@@ -182,9 +182,9 @@ describe('info()', () => {
 
 describe('catalogue: bundled gzip copy', () => {
   test('fromCatalog works offline from database/id_catalog.json.gz', async () => {
-    const tag = await TigerTag.fromCatalog(3527039449, { dataDir, offline: true, timestamp: 1 });
-    expect(tag.idProduct).toBe(3527039449);
-    expect([tag.nozzleTempMin, tag.nozzleTempMax, tag.measure]).toEqual([200, 250, 1000]);
+    const tag = await TigerTag.fromCatalog(2673739332, { dataDir, offline: true, timestamp: 1 });
+    expect(tag.idProduct).toBe(2673739332);
+    expect([tag.nozzleTempMin, tag.nozzleTempMax, tag.measure]).toEqual([195, 235, 1000]);
   });
 });
 
