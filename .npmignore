@@ -12,3 +12,6 @@ CLAUDE.md
 *.swp
 *.swo
 .DS_Store
+site/
+_site/
+.agents/

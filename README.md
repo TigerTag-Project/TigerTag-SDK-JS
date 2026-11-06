@@ -9,6 +9,36 @@
 [![Protocol](https://img.shields.io/badge/protocol-TigerTag%20v2.2-orange)](https://github.com/TigerTag-Project/TigerTag-RFID-Guide)
 [![Offline first](https://img.shields.io/badge/offline-first-teal)](database/)
 
+<p align="center">
+  <a href="https://tigertag-project.github.io/TigerTag-SDK-JS/">
+    <img src="assets/site-button.svg" alt="Get started with the JavaScript SDK" width="460">
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://tigertag-project.github.io/TigerTag-SDK-JS/" hreflang="en">English</a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://tigertag-project.github.io/TigerTag-SDK-JS/fr/" hreflang="fr">Français</a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://tigertag-project.github.io/TigerTag-SDK-JS/de/" hreflang="de">Deutsch</a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://tigertag-project.github.io/TigerTag-SDK-JS/es/" hreflang="es">Español</a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://tigertag-project.github.io/TigerTag-SDK-JS/it/" hreflang="it">Italiano</a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://tigertag-project.github.io/TigerTag-SDK-JS/zh/" hreflang="zh-Hans">中文</a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://tigertag-project.github.io/TigerTag-SDK-JS/pt/" hreflang="pt-BR">Português (BR)</a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://tigertag-project.github.io/TigerTag-SDK-JS/pt-pt/" hreflang="pt-PT">Português (PT)</a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://tigertag-project.github.io/TigerTag-SDK-JS/pl/" hreflang="pl">Polski</a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://tigertag-project.github.io/TigerTag-SDK-JS/ru/" hreflang="ru">Русский</a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://tigertag-project.github.io/TigerTag-SDK-JS/nl/" hreflang="nl">Nederlands</a>
+</p>
+
 **Offline JavaScript / Node.js SDK for TigerTag RFID material identification.**
 
 > TigerTag is the **world's most widely deployed open-source RFID protocol** for

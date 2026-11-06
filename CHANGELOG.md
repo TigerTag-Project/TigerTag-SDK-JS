@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+
+### Added
+- **Showcase site** (`site/`), published on GitHub Pages at
+  https://tigertag-project.github.io/TigerTag-SDK-JS/ by `.github/workflows/pages.yml`:
+  one static page per language (en, fr, de, es, it, zh, pt, pt-pt, pl, ru, nl) built by
+  `site/build.py` from `site/template.html` and `site/i18n/<lang>.json`, with the install
+  command, the README quick start, the features, the CLI and Electron samples, the
+  playground, the ecosystem and an FAQ. The version, release date and code samples are
+  read from `package.json`, this changelog and the README. `site/seo_check.py` checks
+  every page (rule: `.agents/rules/seo-geo.md`). Not part of the npm package.
+- README: a "Get started with the JavaScript SDK" button (`assets/site-button.svg`) and
+  the site's language links at the top.
+
 ## [1.2.0] — 2026-09-30
 
 ### Added

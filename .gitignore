@@ -27,3 +27,6 @@ coverage/
 # Internal tooling (not for public repo)
 .claude/
 CLAUDE.md
+
+# Built site (site/build.py)
+_site/
