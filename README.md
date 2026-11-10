@@ -374,8 +374,11 @@ const { TigerTag } = require('tigertag');
 // Build a new tag from scratch
 const tag = TigerTag.create({
   uid: Buffer.from('04A1B2C3D4E5F6', 'hex'),
+  idType: 142,              // Filament
   idMaterial: 38219,        // PLA
   idBrand: 19961,           // Rosa3D
+  idAspect1: 104,           // Basic
+  idDiameter: 56,           // 1.75 mm
   nozzleTempMin: 195,
   nozzleTempMax: 230,
   color1R: 255, color1G: 0, color1B: 0, color1A: 255,
@@ -405,6 +408,10 @@ const diffs = await tag.diffApi(apiData);     // what differs chip vs cloud?
 const [patchedTag, applied] = await tag.patchFromApi();  // apply all cloud values
 console.log(`${applied.length} field(s) updated from cloud`);
 ```
+
+**Required fields** — `create()` throws if any of these is missing: `idType`, `idMaterial`,
+`idBrand`, `idAspect1`, `color1R`, `color1G`, `color1B`, `color1A`, `measure`, `idUnit`.
+`0` counts as provided.
 
 **Protected fields** — `patch()` throws if you try to modify:
 `idTigertag`, `idProduct`, `uid`, `signatureR`, `signatureS`.
